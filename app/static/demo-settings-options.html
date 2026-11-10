@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系统配置页面 — 3种全新轻量展示方案预览体验</title>
+  <style>
+    /* 全局变量与配色：沿用 CodeGraph / ArtCraft 温暖工匠纸质风格 */
+    :root {
+      --cg-paper: #fbfbf9;
+      --cg-paper-2: #f4f3ee;
+      --cg-paper-press: #eae8e1;
+      --cg-ink: #181714;
+      --cg-ink-2: #52504a;
+      --cg-ink-3: #8a8880;
+      --cg-rule: #dbd8ce;
+      --cg-rule-soft: #e8e6df;
+      --cg-accent: #2563eb;
+      --cg-accent-soft: rgba(37, 99, 235, 0.08);
+      --cg-success: #16a34a;
+      --cg-success-soft: rgba(22, 163, 74, 0.1);
+      --font-mono: "SF Mono", "JetBrains Mono", Consolas, "Courier New", monospace;
+      --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", sans-serif;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-ui);
+      background-color: #141312;
+      color: var(--cg-ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 顶部控制栏 */
+    .top-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 9999;
+      background: #1c1b18;
+      border-bottom: 1px solid #33322d;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: #f5f4ef;
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    .cad-diamond {
+      color: #2563eb;
+      font-size: 0.85rem;
+    }
+
+    .scheme-tabs {
+      display: flex;
+      background: #121110;
+      padding: 3px;
+      border-radius: 6px;
+      border: 1px solid #383732;
+      gap: 3px;
+    }
+
+    .scheme-btn {
+      background: transparent;
+      border: none;
+      color: #a8a69d;
+      padding: 0.45rem 0.9rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.18s ease;
+    }
+
+    .scheme-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .scheme-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+    }
+
+    .device-switcher {
+      display: flex;
+      background: #121110;
+      padding: 3px;
+      border-radius: 6px;
+      border: 1px solid #383732;
+      gap: 2px;
+    }
+
+    .device-btn {
+      background: transparent;
+      border: none;
+      color: #8c8a80;
+      padding: 0.35rem 0.65rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .device-btn.active {
+      background: #2e2d28;
+      color: #eae8e1;
+    }
+
+    /* 方案描述提示条 */
+    .scheme-desc-bar {
+      background: #23221e;
+      border-bottom: 1px solid #363530;
+      padding: 0.6rem 1.5rem;
+      font-size: 0.82rem;
+      color: #d1cfc6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .scheme-desc-bar strong {
+      color: #60a5fa;
+      margin-right: 0.5rem;
+    }
+
+    /* 预览画布外容器 */
+    .preview-stage {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 1.5rem;
+      background: #141312;
+      overflow-y: auto;
+    }
+
+    /* 模拟设备外壳容器 */
+    .device-frame {
+      width: 100%;
+      max-width: 1200px;
+      min-height: 780px;
+      background: var(--cg-paper);
+      border-radius: 8px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px #33322d;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .device-frame.mode-laptop {
+      max-width: 960px;
+    }
+
+    .device-frame.mode-mobile {
+      max-width: 420px;
+      min-height: 800px;
+      border-radius: 36px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 0 8px #2b2a26;
+    }
+
+    /* 模拟顶部应用栏 */
+    .mock-app-header {
+      height: 52px;
+      background: var(--cg-paper-2);
+      border-bottom: 1px solid var(--cg-rule);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.25rem;
+      flex-shrink: 0;
+    }
+
+    .mock-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .mock-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-pill {
+      font-size: 0.72rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      background: var(--cg-paper);
+      border: 1px solid var(--cg-rule);
+      border-radius: 12px;
+      color: var(--cg-ink-2);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cg-success);
+      box-shadow: 0 0 6px var(--cg-success);
+    }
+
+    /* 通用输入框和卡片样式 */
+    .cg-card {
+      background: #ffffff;
+      border: 1px solid var(--cg-rule);
+      border-radius: 4px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.03);
+    }
+
+    .cg-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--cg-rule-soft);
+      padding-bottom: 0.75rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .cg-card-title {
+      font-size: 1rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--cg-ink);
+    }
+
+    .cg-card-title .card-idx {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--cg-accent);
+      background: var(--cg-accent-soft);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 1rem;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--cg-ink-2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-label-tip {
+      font-size: 0.72rem;
+      font-weight: normal;
+      color: var(--cg-ink-3);
+    }
+
+    .input-text {
+      width: 100%;
+      height: 38px;
+      padding: 0 10px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      background: #fbfbf9;
+      border: 1px solid var(--cg-rule);
+      border-radius: 3px;
+      color: var(--cg-ink);
+      transition: all 0.15s ease;
+    }
+
+    .input-text:focus {
+      outline: none;
+      border-color: #2563eb;
+      background: #ffffff;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+    }
+
+    .input-desc {
+      font-size: 0.72rem;
+      color: var(--cg-ink-3);
+      line-height: 1.4;
+      margin-top: 2px;
+    }
+
+    .path-preview-box {
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      color: var(--cg-ink-2);
+      background: var(--cg-paper-2);
+      padding: 5px 8px;
+      border-radius: 2px;
+      margin-top: 3px;
+      border: 1px dashed var(--cg-rule);
+      word-break: break-all;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 0.5rem 1.1rem;
+      font-size: 0.84rem;
+      font-weight: 700;
+      border-radius: 3px;
+      border: 1px solid var(--cg-rule);
+      background: #ffffff;
+      color: var(--cg-ink);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      background: var(--cg-paper-press);
+    }
+
+    .btn-primary {
+      background: #181714;
+      color: #ffffff;
+      border-color: #181714;
+    }
+
+    .btn-primary:hover {
+      background: #2b2a26;
+      border-color: #2b2a26;
+    }
+
+    .btn-sm {
+      padding: 0.25rem 0.6rem;
+      font-size: 0.74rem;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 0.9rem;
+      background: var(--cg-paper-2);
+      border-radius: 3px;
+      border: 1px solid var(--cg-rule-soft);
+    }
+
+    /* ============================================================
+       方案 1：微型工匠吸附轨样式 (Mini CAD Rail)
+       ============================================================ */
+    #scheme-1-view {
+      display: flex;
+      height: 720px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .scheme-1-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem 3rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      scroll-behavior: smooth;
+    }
+
+    /* 极细 46px 微型工匠导轨 */
+    .mini-cad-rail {
+      width: 48px;
+      background: rgba(246, 245, 241, 0.96);
+      border-left: 1px solid var(--cg-rule);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      user-select: none;
+      z-index: 20;
+    }
+
+    .mini-rail-top {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--cg-rule);
+      width: 100%;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: 800;
+      color: var(--cg-ink-3);
+      letter-spacing: 0.1em;
+    }
+
+    .mini-rail-track {
+      flex: 1;
+      width: 100%;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      align-items: center;
+      padding: 20px 0;
+    }
+
+    /* 轨道中央细金属线 */
+    .mini-rail-centerline {
+      position: absolute;
+      top: 15px;
+      bottom: 15px;
+      width: 1px;
+      background: var(--cg-rule);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1;
+    }
+
+    /* 微型吸附节点 */
+    .mini-rail-node {
+      position: relative;
+      z-index: 5;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--cg-paper);
+      border: 1px solid var(--cg-rule);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--cg-ink-2);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .mini-rail-node:hover {
+      border-color: #2563eb;
+      color: #2563eb;
+      transform: scale(1.15);
+      background: #ffffff;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+    }
+
+    .mini-rail-node.active {
+      background: #181714;
+      color: #ffffff;
+      border-color: #181714;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+    }
+
+    .mini-rail-node .status-dot-mini {
+      position: absolute;
+      top: -1px;
+      right: -1px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #16a34a;
+      border: 1px solid #ffffff;
+    }
+
+    /* 悬停微型展开 Tooltip */
+    .mini-rail-node::after {
+      content: attr(data-label);
+      position: absolute;
+      right: 42px;
+      background: #181714;
+      color: #ffffff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateX(6px);
+      transition: all 0.18s ease;
+      font-family: var(--font-ui);
+    }
+
+    .mini-rail-node:hover::after {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* 激光游标激光线 */
+    .mini-rail-laser {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 1.5px;
+      background: #2563eb;
+      box-shadow: 0 0 6px #2563eb;
+      z-index: 10;
+      pointer-events: none;
+      transition: top 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* ============================================================
+       方案 2：macOS / Raycast 级分栏面板样式 (Split View)
+       ============================================================ */
+    #scheme-2-view {
+      display: flex;
+      height: 720px;
+      overflow: hidden;
+    }
+
+    .split-sidebar {
+      width: 230px;
+      background: var(--cg-paper-2);
+      border-right: 1px solid var(--cg-rule);
+      padding: 1.25rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .split-nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .split-nav-title {
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: var(--cg-ink-3);
+      letter-spacing: 0.08em;
+      padding: 0 0.5rem 0.4rem;
+      text-transform: uppercase;
+    }
+
+    .split-nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.65rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--cg-ink-2);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .split-nav-item:hover {
+      background: rgba(0, 0, 0, 0.04);
+      color: var(--cg-ink);
+    }
+
+    .split-nav-item.active {
+      background: #181714;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    }
+
+    .split-nav-item.active .split-nav-sub {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .split-nav-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .split-nav-sub {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--cg-ink-3);
+    }
+
+    .split-main-area {
+      flex: 1;
+      padding: 2rem 2.5rem;
+      overflow-y: auto;
+      background: var(--cg-paper);
+    }
+
+    .split-panel {
+      display: none;
+      animation: fadeIn 0.18s ease forwards;
+    }
+
+    .split-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============================================================
+       方案 3：Bento 模块化全景网格样式 (Bento Grid)
+       ============================================================ */
+    #scheme-3-view {
+      padding: 1.75rem 2rem;
+      height: 720px;
+      overflow-y: auto;
+    }
+
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 1.25rem;
+      max-width: 1050px;
+      margin: 0 auto;
+    }
+
+    .bento-col-4 { grid-column: span 4; }
+    .bento-col-6 { grid-column: span 6; }
+    .bento-col-8 { grid-column: span 8; }
+    .bento-col-12 { grid-column: span 12; }
+
+    .bento-stat-card {
+      background: #ffffff;
+      border: 1px solid var(--cg-rule);
+      border-radius: 6px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+    }
+
+    .bento-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: 4px;
+    }
+
+    .bento-badge-success {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .bento-badge-accent {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    /* 移动端响应适配 */
+    @media (max-width: 768px) {
+      .mini-cad-rail { display: none; }
+      .scheme-1-content { padding: 1rem; }
+      .split-sidebar { width: 140px; padding: 0.75rem 0.5rem; }
+      .split-main-area { padding: 1rem; }
+      .bento-col-4, .bento-col-6, .bento-col-8 { grid-column: span 12; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 顶部设计方案交互控制栏 -->
+  <header class="top-toolbar">
+    <div class="brand-title">
+      <span class="cad-diamond">◇</span>
+      <span>配置页面改版 — 3种设计方案全景对比</span>
+    </div>
+
+    <div class="scheme-tabs">
+      <button class="scheme-btn active" onclick="switchScheme(1)">
+        <span>① 微型工匠吸附轨 (Mini Rail)</span>
+      </button>
+      <button class="scheme-btn" onclick="switchScheme(2)">
+        <span>② macOS 分栏面板 (Split View)</span>
+      </button>
+      <button class="scheme-btn" onclick="switchScheme(3)">
+        <span>③ Bento 网格仪表盘 (Bento Grid)</span>
+      </button>
+    </div>
+
+    <div class="device-switcher">
+      <button class="device-btn active" onclick="switchDevice('desktop')">🖥️ 宽屏</button>
+      <button class="device-btn" onclick="switchDevice('laptop')">💻 便携</button>
+      <button class="device-btn" onclick="switchDevice('mobile')">📱 手机</button>
+    </div>
+  </header>
+
+  <!-- 方案说明条 -->
+  <div class="scheme-desc-bar" id="scheme-desc">
+    <div>
+      <strong id="scheme-name">方案 1：微型工匠吸附轨 (Mini CAD Rail)</strong>
+      <span id="scheme-tagline">保留 ArtCraft 电光蓝激光游标与工业精密质感，但将轨道收窄至 48px，彻底释放左侧表单宽度！</span>
+    </div>
+    <div style="font-size:0.75rem; color:#9ca3af;">篇幅小也极其干脆利落</div>
+  </div>
+
+  <!-- 预览交互主舞台 -->
+  <main class="preview-stage">
+    <div class="device-frame" id="device-frame">
+      
+      <!-- 模拟应用顶栏 -->
+      <div class="mock-app-header">
+        <div class="mock-brand">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          <span>夸克自动转存助手</span>
+          <span style="font-size:0.75rem; color:var(--cg-ink-3); margin-left:4px;">/ 系统配置</span>
+        </div>
+        <div class="mock-header-actions">
+          <div class="status-pill"><span class="status-dot"></span>QAS 在线</div>
+          <div class="status-pill"><span class="status-dot"></span>TMDB 联通</div>
+          <button class="btn btn-primary btn-sm" onclick="alert('配置保存成功！')">保存全部配置</button>
+        </div>
+      </div>
+
+      <!-- ============================================================
+           方案 1 视图：微型工匠吸附导轨 (Mini CAD Rail)
+           ============================================================ -->
+      <div id="scheme-1-view">
+        <div class="scheme-1-content" id="scheme-1-scroll" onscroll="onScheme1Scroll()">
+          
+          <!-- 卡片 01: 存储路径 -->
+          <div class="cg-card" id="s1-card-paths">
+            <div class="cg-card-header">
+              <div class="cg-card-title">
+                <span class="card-idx">01</span>
+                <span>多媒体分类存储路径模板</span>
+              </div>
+              <span style="font-size:0.72rem; color:var(--cg-ink-3);">支持 {片名} {年份} {季数} 魔法变量</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">电影保存路径模板</label>
+              <input type="text" class="input-text" value="nas/movie/{片名} ({年份})">
+              <div class="path-preview-box">实际生成预览：nas/movie/蜘蛛侠：崭新之日 (2026)</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">剧集保存路径模板</label>
+              <input type="text" class="input-text" value="nas/TV/{剧名} ({年份})/{剧名} - S{季数}">
+              <div class="path-preview-box">实际生成预览：nas/TV/繁花 (2023)/繁花 - S01</div>
+            </div>
+          </div>
+
+          <!-- 卡片 02: QAS 服务对接 -->
+          <div class="cg-card" id="s1-card-qas">
+            <div class="cg-card-header">
+              <div class="cg-card-title">
+                <span class="card-idx">02</span>
+                <span>Quark-Auto-Save 后台服务 (QAS)</span>
+              </div>
+              <button class="btn btn-sm" onclick="alert('QAS 服务状态正常 (9ms)')">⚡ 测试连接</button>
+            </div>
+            <div class="form-group">
+              <label class="form-label">QAS 服务地址 (Base URL)</label>
+              <input type="text" class="input-text" value="https://qas.tigerlove.asia/">
+            </div>
+            <div class="form-group">
+              <label class="form-label">QAS API 访问令牌 (Token)</label>
+              <input type="password" class="input-text" value="YOUR_QAS_TOKEN">
+            </div>
+          </div>
+
+          <!-- 卡片 03: TMDB 元数据 -->
+          <div class="cg-card" id="s1-card-tmdb">
+            <div class="cg-card-header">
+              <div class="cg-card-title">
+                <span class="card-idx">03</span>
+                <span>TMDB 影视发现与海报元数据</span>
+              </div>
+              <button class="btn btn-sm" onclick="alert('TMDB API 响应通畅')">⚡ 检查 API</button>
+            </div>
+            <div class="form-group">
+              <label class="form-label">TMDB API Key (v3 auth)</label>
+              <input type="password" class="input-text" value="YOUR_TMDB_API_KEY">
+            </div>
+            <div class="form-group">
+              <label class="form-label">TMDB API 反代 / Base URL</label>
+              <input type="text" class="input-text" value="https://api.themoviedb.org">
+            </div>
+          </div>
+
+          <!-- 卡片 04: AI 智能体 -->
+          <div class="cg-card" id="s1-card-llm">
+            <div class="cg-card-header">
+              <div class="cg-card-title">
+                <span class="card-idx">04</span>
+                <span>全网资源 AI 智能质检与规范重命名</span>
+              </div>
+              <button class="btn btn-sm" onclick="alert('LLM 连接通畅，模型响应正常！')">⚡ 测试模型</button>
+            </div>
+            <div class="toggle-row" style="margin-bottom:1rem;">
+              <div>
+                <strong style="font-size:0.85rem;">启用 AI 智能质检与透视</strong>
+                <div style="font-size:0.74rem; color:var(--cg-ink-3);">开启后将在转存界面展现 AI 智能画质质检与目录穿透透视</div>
+              </div>
+              <input type="checkbox" checked style="width:18px; height:18px; accent-color:#2563eb;">
+            </div>
+            <div class="form-group">
+              <label class="form-label">LLM API 端点 (OpenAI 兼容)</label>
+              <input type="text" class="input-text" value="https://llm.tigerlove.asia/v1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">指定模型 (Model Name)</label>
+              <input type="text" class="input-text" value="cn:deepseek-v4.1-flash">
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 右侧精细吸附导轨 (Mini CAD Rail) -->
+        <aside class="mini-cad-rail">
+          <div class="mini-rail-top">SCALE</div>
+          <div class="mini-rail-track" id="mini-rail-track">
+            <div class="mini-rail-centerline"></div>
+            <div class="mini-rail-laser" id="mini-rail-laser" style="top: 15%;"></div>
+
+            <div class="mini-rail-node active" id="node-1" data-label="01 存储路径" onclick="scrollToS1Card('s1-card-paths', 0)">
+              01
+            </div>
+            <div class="mini-rail-node" id="node-2" data-label="02 QAS 服务" onclick="scrollToS1Card('s1-card-qas', 1)">
+              02
+              <span class="status-dot-mini"></span>
+            </div>
+            <div class="mini-rail-node" id="node-3" data-label="03 TMDB 元数据" onclick="scrollToS1Card('s1-card-tmdb', 2)">
+              03
+              <span class="status-dot-mini"></span>
+            </div>
+            <div class="mini-rail-node" id="node-4" data-label="04 AI 智能体" onclick="scrollToS1Card('s1-card-llm', 3)">
+              04
+            </div>
+          </div>
+          <div class="mini-rail-top" style="border-top:1px solid var(--cg-rule); border-bottom:none;">100%</div>
+        </aside>
+      </div>
+
+      <!-- ============================================================
+           方案 2 视图：macOS / Raycast 级分栏面板 (Split View)
+           ============================================================ -->
+      <div id="scheme-2-view" style="display: none;">
+        <!-- 左侧菜单 -->
+        <aside class="split-sidebar">
+          <div>
+            <div class="split-nav-title">系统核心配置</div>
+            <div class="split-nav-list">
+              <div class="split-nav-item active" onclick="switchSplitTab('split-paths', this)">
+                <div class="split-nav-left">
+                  <span>📁</span>
+                  <span>存储路径</span>
+                </div>
+                <span class="split-nav-sub">5 类别</span>
+              </div>
+              <div class="split-nav-item" onclick="switchSplitTab('split-qas', this)">
+                <div class="split-nav-left">
+                  <span>⚡</span>
+                  <span>QAS 服务</span>
+                </div>
+                <span class="status-dot"></span>
+              </div>
+              <div class="split-nav-item" onclick="switchSplitTab('split-tmdb', this)">
+                <div class="split-nav-left">
+                  <span>🎬</span>
+                  <span>TMDB 数据</span>
+                </div>
+                <span class="status-dot"></span>
+              </div>
+              <div class="split-nav-item" onclick="switchSplitTab('split-llm', this)">
+                <div class="split-nav-left">
+                  <span>🤖</span>
+                  <span>AI 智能体</span>
+                </div>
+                <span class="split-nav-sub">DeepSeek</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding-top:1rem; border-top:1px solid var(--cg-rule-soft);">
+            <div style="font-size:0.72rem; color:var(--cg-ink-3); line-height:1.4;">
+              当前引擎版本：v1.1.0<br>
+              全部状态正常
+            </div>
+          </div>
+        </aside>
+
+        <!-- 右侧内容面板 -->
+        <main class="split-main-area">
+          
+          <!-- 面板 1：路径 -->
+          <div class="split-panel active" id="split-paths">
+            <div style="margin-bottom:1.25rem;">
+              <h2 style="font-size:1.15rem; font-weight:800;">多媒体存储路径规范</h2>
+              <p style="font-size:0.78rem; color:var(--cg-ink-3);">定义各类影视转存到网盘时的落地目录结构，自动按年、季、剧名归类。</p>
+            </div>
+            <div class="cg-card">
+              <div class="form-group">
+                <label class="form-label">电影路径模板</label>
+                <input type="text" class="input-text" value="nas/movie/{片名} ({年份})">
+                <div class="path-preview-box">预览：nas/movie/蜘蛛侠：崭新之日 (2026)</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">剧集路径模板</label>
+                <input type="text" class="input-text" value="nas/TV/{剧名} ({年份})/{剧名} - S{季数}">
+                <div class="path-preview-box">预览：nas/TV/繁花 (2023)/繁花 - S01</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">动画路径模板</label>
+                <input type="text" class="input-text" value="nas/动画/{剧名} ({年份})/{剧名} - S{季数}">
+              </div>
+            </div>
+          </div>
+
+          <!-- 面板 2：QAS -->
+          <div class="split-panel" id="split-qas">
+            <div style="margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:flex-end;">
+              <div>
+                <h2 style="font-size:1.15rem; font-weight:800;">Quark-Auto-Save 后台服务</h2>
+                <p style="font-size:0.78rem; color:var(--cg-ink-3);">负责实际执行转存任务与云盘定时追更调度。</p>
+              </div>
+              <button class="btn btn-sm" onclick="alert('QAS 服务状态正常 (延迟 9ms)')">⚡ 一键测试</button>
+            </div>
+            <div class="cg-card">
+              <div class="form-group">
+                <label class="form-label">QAS Base URL</label>
+                <input type="text" class="input-text" value="https://qas.tigerlove.asia/">
+              </div>
+              <div class="form-group">
+                <label class="form-label">API Token</label>
+                <input type="password" class="input-text" value="YOUR_QAS_TOKEN">
+              </div>
+            </div>
+          </div>
+
+          <!-- 面板 3：TMDB -->
+          <div class="split-panel" id="split-tmdb">
+            <div style="margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:flex-end;">
+              <div>
+                <h2 style="font-size:1.15rem; font-weight:800;">TMDB 影视发现与海报</h2>
+                <p style="font-size:0.78rem; color:var(--cg-ink-3);">提供热门榜单拉取、高精度中文剧名及宽幅电影海报背景。</p>
+              </div>
+              <button class="btn btn-sm" onclick="alert('TMDB API 连接正常')">⚡ 测试接口</button>
+            </div>
+            <div class="cg-card">
+              <div class="form-group">
+                <label class="form-label">TMDB API Key</label>
+                <input type="password" class="input-text" value="YOUR_TMDB_API_KEY">
+              </div>
+              <div class="form-group">
+                <label class="form-label">API 代理端点 (国内直连加速)</label>
+                <input type="text" class="input-text" value="https://api.themoviedb.org">
+              </div>
+            </div>
+          </div>
+
+          <!-- 面板 4：AI -->
+          <div class="split-panel" id="split-llm">
+            <div style="margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:flex-end;">
+              <div>
+                <h2 style="font-size:1.15rem; font-weight:800;">AI 智能质检与重命名大模型</h2>
+                <p style="font-size:0.78rem; color:var(--cg-ink-3);">支持 OpenAI 标准协议，负责自动甄别 4K 真伪、剔除广告及 Emby 重命名。</p>
+              </div>
+              <button class="btn btn-sm" onclick="alert('大模型连通性测试通过！')">⚡ 测试对话</button>
+            </div>
+            <div class="cg-card">
+              <div class="toggle-row" style="margin-bottom:1rem;">
+                <div>
+                  <strong style="font-size:0.85rem;">启用 AI 智能质检与透视</strong>
+                  <div style="font-size:0.74rem; color:var(--cg-ink-3);">关闭后将仅使用纯规则匹配，不产生大模型调用</div>
+                </div>
+                <input type="checkbox" checked style="width:18px; height:18px; accent-color:#2563eb;">
+              </div>
+              <div class="form-group">
+                <label class="form-label">LLM API 端点</label>
+                <input type="text" class="input-text" value="https://llm.tigerlove.asia/v1">
+              </div>
+              <div class="form-group">
+                <label class="form-label">模型标识 (Model)</label>
+                <input type="text" class="input-text" value="cn:deepseek-v4.1-flash">
+              </div>
+            </div>
+          </div>
+
+        </main>
+      </div>
+
+      <!-- ============================================================
+           方案 3 视图：Bento 模块化全景网格 (Bento Grid)
+           ============================================================ -->
+      <div id="scheme-3-view" style="display: none;">
+        <div class="bento-grid">
+          
+          <!-- Bento 顶部 2 块状态小卡片 -->
+          <div class="bento-col-6">
+            <div class="bento-stat-card">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                <div style="font-weight:800; font-size:0.92rem; display:flex; align-items:center; gap:6px;">
+                  <span>⚡ QAS 转存引擎</span>
+                </div>
+                <span class="bento-badge bento-badge-success">● 在线 9ms</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">服务 Base URL</label>
+                <input type="text" class="input-text" value="https://qas.tigerlove.asia/">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Token</label>
+                <input type="password" class="input-text" value="YOUR_QAS_TOKEN">
+              </div>
+            </div>
+          </div>
+
+          <div class="bento-col-6">
+            <div class="bento-stat-card">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                <div style="font-weight:800; font-size:0.92rem; display:flex; align-items:center; gap:6px;">
+                  <span>🎬 TMDB 影视网络</span>
+                </div>
+                <span class="bento-badge bento-badge-success">● 联通已鉴权</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">API Key</label>
+                <input type="password" class="input-text" value="YOUR_TMDB_API_KEY">
+              </div>
+              <div class="form-group">
+                <label class="form-label">反向代理端点</label>
+                <input type="text" class="input-text" value="https://api.themoviedb.org">
+              </div>
+            </div>
+          </div>
+
+          <!-- Bento 中部 AI 智能体卡片 -->
+          <div class="bento-col-12">
+            <div class="bento-stat-card" style="background:#fcfbf7;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                <div style="font-weight:800; font-size:0.92rem; display:flex; align-items:center; gap:6px;">
+                  <span>🤖 全网资源 AI 智能质检与规范重命名</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="bento-badge bento-badge-accent">DeepSeek 驱动</span>
+                  <input type="checkbox" checked style="width:16px; height:16px; accent-color:#2563eb;">
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div class="form-group">
+                  <label class="form-label">API Base URL</label>
+                  <input type="text" class="input-text" value="https://llm.tigerlove.asia/v1">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">模型代号</label>
+                  <input type="text" class="input-text" value="cn:deepseek-v4.1-flash">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bento 底部路径大卡片 -->
+          <div class="bento-col-12">
+            <div class="bento-stat-card">
+              <div style="font-weight:800; font-size:0.92rem; margin-bottom:0.75rem;">
+                <span>📁 云盘分类存储路径模板</span>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div class="form-group">
+                  <label class="form-label">电影路径模板</label>
+                  <input type="text" class="input-text" value="nas/movie/{片名} ({年份})">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">剧集路径模板</label>
+                  <input type="text" class="input-text" value="nas/TV/{剧名} ({年份})/{剧名} - S{季数}">
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // 方案切换逻辑
+    const SCHEME_INFO = {
+      1: {
+        name: "方案 1：微型工匠吸附轨 (Mini CAD Rail)",
+        tagline: "保留 ArtCraft 电光蓝激光游标与工业精密质感，但将轨道收窄至 48px，彻底释放左侧表单宽度！"
+      },
+      2: {
+        name: "方案 2：macOS / Raycast 分栏面板 (Split View)",
+        tagline: "彻底告别滚动条！左侧导航右侧单页，生产力最高，一屏内从容展现全部配置。"
+      },
+      3: {
+        name: "方案 3：Bento 模块化网格仪表盘 (Bento Grid)",
+        tagline: "现代仪表盘网格排布，所有服务状态与路径并排一览无余，兼具科技感与紧凑度。"
+      }
+    };
+
+    function switchScheme(num) {
+      document.querySelectorAll('.scheme-btn').forEach((b, idx) => {
+        b.classList.toggle('active', idx === num - 1);
+      });
+      document.getElementById('scheme-1-view').style.display = num === 1 ? 'flex' : 'none';
+      document.getElementById('scheme-2-view').style.display = num === 2 ? 'flex' : 'none';
+      document.getElementById('scheme-3-view').style.display = num === 3 ? 'block' : 'none';
+
+      document.getElementById('scheme-name').innerText = SCHEME_INFO[num].name;
+      document.getElementById('scheme-tagline').innerText = SCHEME_INFO[num].tagline;
+    }
+
+    function switchDevice(mode) {
+      const frame = document.getElementById('device-frame');
+      frame.className = 'device-frame';
+      if (mode === 'laptop') frame.classList.add('mode-laptop');
+      if (mode === 'mobile') frame.classList.add('mode-mobile');
+
+      document.querySelectorAll('.device-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('onclick').includes(mode));
+      });
+    }
+
+    // 方案 1 滚动与激光游标联动
+    function onScheme1Scroll() {
+      const scrollEl = document.getElementById('scheme-1-scroll');
+      const laser = document.getElementById('mini-rail-laser');
+      const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+      const ratio = maxScroll > 0 ? scrollEl.scrollTop / maxScroll : 0;
+      
+      const laserTop = 15 + ratio * 70; // 15% 到 85% 之间滑动
+      laser.style.top = `${laserTop}%`;
+
+      const cards = ['s1-card-paths', 's1-card-qas', 's1-card-tmdb', 's1-card-llm'];
+      let activeIdx = 0;
+      cards.forEach((id, idx) => {
+        const el = document.getElementById(id);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const pRect = scrollEl.getBoundingClientRect();
+          if (rect.top - pRect.top <= pRect.height * 0.45) {
+            activeIdx = idx;
+          }
+        }
+      });
+
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById(`node-${i}`).classList.toggle('active', i - 1 === activeIdx);
+      }
+    }
+
+    function scrollToS1Card(id, idx) {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // 方案 2 分栏切换逻辑
+    function switchSplitTab(panelId, btn) {
+      document.querySelectorAll('.split-nav-item').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.split-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(panelId).classList.add('active');
+    }
+  </script>
+</body>
+</html>

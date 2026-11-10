@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto-Pilot 架构与交互三套演进方案原型演示</title>
+  <link rel="stylesheet" href="/static/css/codegraph.css">
+  <style>
+    /* 原型预览顶栏控制器 */
+    .prototype-bar {
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      background: #111110;
+      color: #fff;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #282824;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    }
+    .proto-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .proto-logo {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 800;
+      background: #ffffff;
+      color: #111;
+      padding: 2px 7px;
+      border-radius: 2px;
+    }
+    .proto-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .proto-tabs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #242422;
+      padding: 3px;
+      border-radius: 4px;
+    }
+    .proto-tab-btn {
+      background: transparent;
+      border: none;
+      color: #999;
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 0.4rem 0.9rem;
+      border-radius: 3px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .proto-tab-btn.active {
+      background: #ffffff;
+      color: #111110;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+    .proto-tab-btn:hover:not(.active) {
+      color: #fff;
+    }
+
+    /* 原型展示舞台 */
+    .proto-stage {
+      max-width: 960px;
+      margin: 1.5rem auto 3rem auto;
+      padding: 0 1rem;
+    }
+
+    .proto-scheme-card {
+      background: var(--cg-paper);
+      border: 1px solid var(--cg-rule);
+      box-shadow: 6px 6px 0px rgba(0,0,0,0.15);
+      border-radius: 4px;
+      overflow: hidden;
+      display: none;
+    }
+    .proto-scheme-card.active {
+      display: block;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .scheme-desc-banner {
+      background: var(--cg-paper-2);
+      border-bottom: 1px solid var(--cg-rule-soft);
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .scheme-meta-title {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: var(--cg-ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .scheme-badge {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 2px;
+      background: #111110;
+      color: #fff;
+    }
+    .scheme-highlight {
+      font-size: 0.78rem;
+      color: var(--cg-ink-2);
+      line-height: 1.5;
+    }
+
+    /* 方案 A 样式：DeepSeek / ChatGPT 极简思考胶囊 */
+    .deepseek-capsule-box {
+      margin-bottom: 1rem;
+    }
+    .thought-capsule-running {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0.45rem 0.95rem;
+      background: #f4f3ed;
+      border: 1px solid var(--cg-rule-soft);
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--cg-ink);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+    .shimmer-sparkle {
+      width: 14px;
+      height: 14px;
+      color: #1a73e8;
+      animation: spin-pulse 2s infinite linear;
+    }
+    @keyframes spin-pulse {
+      0% { transform: rotate(0deg) scale(0.95); opacity: 0.8; }
+      50% { transform: rotate(180deg) scale(1.1); opacity: 1; }
+      100% { transform: rotate(360deg) scale(0.95); opacity: 0.8; }
+    }
+
+    /* 完成后的极简折叠条 */
+    .thought-bar-finished {
+      background: var(--cg-paper-2);
+      border: 1px solid var(--cg-rule-soft);
+      border-radius: 4px;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+    .thought-summary-header {
+      padding: 0.5rem 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      font-size: 0.78rem;
+      color: var(--cg-ink-2);
+      font-weight: 600;
+    }
+    .thought-summary-header:hover {
+      background: var(--cg-paper-press);
+      color: var(--cg-ink);
+    }
+    .thought-tag-done {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .thought-dot-green {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #137333;
+    }
+    .thought-arrow {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--cg-ink-3);
+      transition: transform 0.2s ease;
+    }
+    .thought-bar-finished.open .thought-arrow {
+      transform: rotate(180deg);
+    }
+    .thought-body-prose {
+      display: none;
+      padding: 0.85rem 1rem;
+      border-top: 1px solid var(--cg-rule-soft);
+      background: #ffffff;
+      font-size: 0.76rem;
+      line-height: 1.6;
+      color: #444;
+      font-family: var(--font-sans);
+    }
+    .thought-bar-finished.open .thought-body-prose {
+      display: block;
+    }
+    .thought-step-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 0.5rem;
+    }
+    .thought-step-line:last-child {
+      margin-bottom: 0;
+    }
+    .step-badge {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--cg-ink-3);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* 方案 B 样式：拟物工匠一体化 4步总线 */
+    .compact-bus-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+      background: var(--cg-paper-2);
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid var(--cg-rule-soft);
+      margin-bottom: 1.1rem;
+    }
+    .compact-bus-item {
+      background: var(--cg-paper);
+      padding: 0.55rem 0.65rem;
+      border-radius: 3px;
+      border: 1px solid var(--cg-rule-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .compact-bus-title {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #137333;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .compact-bus-sub {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--cg-ink-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* 方案 C 样式：独立侧边栏/主菜单真 ReAct Agent 聊天交互 */
+    .agent-chat-container {
+      background: #fafaf8;
+      display: flex;
+      flex-direction: column;
+      height: 600px;
+    }
+    .agent-chat-header {
+      padding: 0.85rem 1.25rem;
+      background: #fff;
+      border-bottom: 1px solid var(--cg-rule-soft);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .agent-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .agent-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      background: #111;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+    }
+    .agent-title-text {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: var(--cg-ink);
+    }
+    .agent-status-badge {
+      font-size: 0.68rem;
+      color: #137333;
+      background: #e6f4ea;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .chat-messages-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .chat-bubble-user {
+      align-self: flex-end;
+      background: #111110;
+      color: #fff;
+      padding: 0.75rem 1rem;
+      border-radius: 6px 6px 2px 6px;
+      font-size: 0.84rem;
+      max-width: 80%;
+      line-height: 1.5;
+    }
+    .chat-bubble-agent {
+      align-self: flex-start;
+      background: #ffffff;
+      border: 1px solid var(--cg-rule-soft);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      padding: 1rem 1.15rem;
+      border-radius: 6px 6px 6px 2px;
+      max-width: 90%;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    /* 真 ReAct Agent 工具调用卡片 */
+    .react-tool-card {
+      background: #f8f9fa;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 0.6rem 0.85rem;
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+    }
+    .tool-call-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #1a73e8;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .tool-args-box {
+      color: #475569;
+      background: #f1f5f9;
+      padding: 4px 8px;
+      border-radius: 2px;
+      word-break: break-all;
+    }
+    .tool-observation {
+      color: #137333;
+      margin-top: 4px;
+      font-size: 0.72rem;
+    }
+    .chat-input-bar {
+      padding: 0.85rem 1.25rem;
+      background: #fff;
+      border-top: 1px solid var(--cg-rule-soft);
+      display: flex;
+      gap: 8px;
+    }
+    .chat-input {
+      flex: 1;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--cg-rule);
+      border-radius: 4px;
+      font-size: 0.85rem;
+      background: var(--cg-paper-2);
+    }
+  </style>
+</head>
+<body style="background: var(--cg-paper-press); margin: 0; padding-bottom: 4rem;">
+
+  <!-- 原型顶栏切换器 -->
+  <header class="prototype-bar">
+    <div class="proto-title-group">
+      <span class="proto-logo">PROTOTYPE</span>
+      <span class="proto-title">Auto-Pilot 架构与交互三套精简演进方案对比</span>
+    </div>
+    <div class="proto-tabs">
+      <button type="button" class="proto-tab-btn active" onclick="switchScheme('scheme-a')">
+        <span>方案 A：大厂极简现代风 (DeepSeek 式胶囊)</span>
+      </button>
+      <button type="button" class="proto-tab-btn" onclick="switchScheme('scheme-b')">
+        <span>方案 B：拟物工匠一体化 (4步紧凑总线)</span>
+      </button>
+      <button type="button" class="proto-tab-btn" onclick="switchScheme('scheme-c')">
+        <span>方案 C：职责分离 (真 ReAct 对话式智能体)</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="proto-stage">
+
+    <!-- ========================================================
+         方案 A：极简现代大厂风 (DeepSeek / ChatGPT 极简折叠)
+         ======================================================== -->
+    <section class="proto-scheme-card active" id="scheme-a">
+      <div class="scheme-desc-banner">
+        <div>
+          <div class="scheme-meta-title">
+            <span class="scheme-badge">方案 A · 极力推荐</span>
+            <span>大厂极简现代风 —— 告别彩色 Debug 方框，微光胶囊 + 极简收敛</span>
+          </div>
+          <div class="scheme-highlight">
+            彻底移除上方的 4 步格子与花绿色块。思考中仅展示单行微光小胶囊；完成后收敛为一行浅灰优雅小字，默认完全折叠，100% 视觉焦点直接留给影视决策大卡。
+          </div>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="toggleSchemeAState()">
+            切换演示：思考中 ⇄ 思考完成
+          </button>
+        </div>
+      </div>
+
+      <!-- 弹窗主体内容还原 -->
+      <div class="modal-dialog" style="max-width: 100%; border: none; box-shadow: none;">
+        <!-- TMDB 头部 -->
+        <div class="tmdb-hero-header">
+          <div class="tmdb-hero-backdrop" style="background-image: url('https://image.tmdb.org/t/p/w1280/8bCo6T0j4Dgnc1nNn6uYgG1R2xN.jpg'); opacity: 0.85;"></div>
+          <div class="tmdb-hero-overlay"></div>
+          <button type="button" class="tmdb-hero-close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          <div class="tmdb-hero-content">
+            <img class="tmdb-hero-poster" src="https://image.tmdb.org/t/p/w500/8bCo6T0j4Dgnc1nNn6uYgG1R2xN.jpg" alt="封面">
+            <div class="tmdb-hero-info">
+              <div class="tmdb-hero-top-row">
+                <div class="tmdb-hero-title">生化危机：爆发夜</div>
+                <div class="tmdb-hero-rating">★ 7.8</div>
+              </div>
+              <div class="tmdb-hero-tags">
+                <span>2026</span>
+                <span>•</span>
+                <span>科幻 / 动作 / 惊悚</span>
+              </div>
+              <p class="tmdb-hero-overview">浣熊市病毒爆发初期，一组幸存者在隔离区深处展开极限求生，揭开地下基地不可告人的冷冻样本秘密...</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-body" style="padding: 1.25rem;">
+          <!-- 页签切换 -->
+          <div class="modal-mode-tabs">
+            <button type="button" class="modal-mode-tab active">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              <span>智能托管 (Auto-Pilot)</span>
+            </button>
+            <button type="button" class="modal-mode-tab">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>专家手动微调</span>
+            </button>
+          </div>
+
+          <!-- 方案 A 的核心：思考流控件 -->
+          <div class="deepseek-capsule-box">
+            <!-- 状态 1：思考中 (动态微光流线胶囊) -->
+            <div id="capsule-running" class="thought-capsule-running" style="display: none;">
+              <svg class="shimmer-sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/></svg>
+              <span>AI 正在探查全网夸克网盘目录树并清洗引流广告... (15.8s)</span>
+            </div>
+
+            <!-- 状态 2：思考完成 (极简收敛折叠条，默认收起) -->
+            <div id="capsule-finished" class="thought-bar-finished">
+              <div class="thought-summary-header" onclick="this.parentElement.classList.toggle('open')">
+                <span class="thought-tag-done">
+                  <span class="thought-dot-green"></span>
+                  <span>已完成深度推理决策 (耗时 19.18s · 自愈切换至第 2 优选 · 0 层穿透)</span>
+                </span>
+                <span class="thought-arrow">查看思考过程 ▾</span>
+              </div>
+              <div class="thought-body-prose">
+                <div class="thought-step-line">
+                  <span class="step-badge">[01 检索]</span>
+                  <div>向全网聚合引擎检索《生化危机：爆发夜》，过滤出 22 条夸克分享候选。</div>
+                </div>
+                <div class="thought-step-line">
+                  <span class="step-badge">[02 质检]</span>
+                  <div>检出 4K UHD、杜比视界及 REMUX 格式，首选源经规格质检评分 95 分。</div>
+                </div>
+                <div class="thought-step-line">
+                  <span class="step-badge">[03 自愈]</span>
+                  <div>探针检测发现首位源已被分享者注销，自主降级切换至第 2 优选源并成功穿透 0 层套娃。</div>
+                </div>
+                <div class="thought-step-line">
+                  <span class="step-badge">[04 决策]</span>
+                  <div>正片匹配成功，规范为 Emby/Plex 标准命名并结算保存路径至 <code>/nas/movie</code>。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 落地决策大卡直接占据 C 位 -->
+          <div class="pilot-decision-card">
+            <span class="pilot-card-badge">AI PILOT DECISION</span>
+            <div>
+              <div class="pilot-spec-row">
+                <div class="pilot-spec-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/></svg>
+                  <span>生化危机：爆发夜 (2026) 4K.SDR/DV/HDR.内封双字</span>
+                </div>
+              </div>
+              <div class="pilot-tags-row">
+                <span class="ai-tag ai-tag-best">智能置顶首推</span>
+                <span class="ai-tag ai-tag-quality">4K超清</span>
+                <span class="ai-tag ai-tag-quality">杜比视界/HDR</span>
+                <span class="ai-tag ai-tag-default" style="font-family:var(--font-mono);font-weight:700;">★ 95分</span>
+              </div>
+            </div>
+
+            <div class="pilot-preview-grid">
+              <div class="pilot-preview-box">
+                <span class="pilot-section-title">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  目录穿透结构
+                </span>
+                <div style="font-size:0.75rem;color:var(--cg-ink-2);line-height:1.45;">
+                  已触发自愈探查，跳过 <strong>0 层</strong> 套娃，正片直接位于主目录（共 4 个视频）
+                </div>
+              </div>
+              <div class="pilot-preview-box">
+                <span class="pilot-section-title">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  Emby/Plex 标准命名效果
+                </span>
+                <div style="font-family:var(--font-mono);font-size:0.75rem;color:#137333;background:#e6f4ea;padding:3px 6px;border-radius:2px;border:1px solid #ceead6;word-break:break-all;">
+                  生化危机：爆发夜 (2026).mkv
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <span class="pilot-section-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                目标网盘保存路径
+              </span>
+              <div class="pilot-path-badge">/nas/movie/生化危机：爆发夜 (2026)</div>
+            </div>
+
+            <div class="pilot-action-row">
+              <button type="button" class="pilot-btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>立即执行转存</span>
+              </button>
+              <button type="button" class="pilot-btn-secondary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>加入后台追更</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         方案 B：拟物工匠一体化 (4步紧凑总线合一)
+         ======================================================== -->
+    <section class="proto-scheme-card" id="scheme-b">
+      <div class="scheme-desc-banner">
+        <div>
+          <div class="scheme-meta-title">
+            <span class="scheme-badge">方案 B · 规整工业风</span>
+            <span>拟物工匠一体化 —— 彻底消灭下方彩色抽屉，4 步总线与状态合二为一</span>
+          </div>
+          <div class="scheme-highlight">
+            保留 CAD 纸质总线质感，但不再搞双层结构：每一步格子直接承载浓缩核心数据（候选数、评分、自愈动作、命名结果）。高度控制在 60px 以内，全屏一目了然。
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-dialog" style="max-width: 100%; border: none; box-shadow: none;">
+        <!-- 头部省略展示，聚焦正文 -->
+        <div class="modal-body" style="padding: 1.25rem;">
+          <div class="modal-mode-tabs">
+            <button type="button" class="modal-mode-tab active">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              <span>智能托管 (Auto-Pilot)</span>
+            </button>
+            <button type="button" class="modal-mode-tab">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>专家手动微调</span>
+            </button>
+          </div>
+
+          <!-- 方案 B 的核心：紧凑型 4步一体化总线 -->
+          <div class="compact-bus-grid">
+            <div class="compact-bus-item">
+              <div class="compact-bus-title">
+                <span class="bus-dot"></span>
+                <span>1. 盘搜检索</span>
+              </div>
+              <div class="compact-bus-sub">共 22 条夸克候选</div>
+            </div>
+            <div class="compact-bus-item">
+              <div class="compact-bus-title">
+                <span class="bus-dot"></span>
+                <span>2. 规格质检</span>
+              </div>
+              <div class="compact-bus-sub">优选 95分 (4K杜比)</div>
+            </div>
+            <div class="compact-bus-item">
+              <div class="compact-bus-title">
+                <span class="bus-dot"></span>
+                <span>3. 穿透探针</span>
+              </div>
+              <div class="compact-bus-sub">自愈切次优 · 0层穿透</div>
+            </div>
+            <div class="compact-bus-item">
+              <div class="compact-bus-title">
+                <span class="bus-dot"></span>
+                <span>4. 命名结算</span>
+              </div>
+              <div class="compact-bus-sub">Emby 规范已就绪</div>
+            </div>
+          </div>
+
+          <!-- 下方直接呈现决策大卡，中间零冗余色块 -->
+          <div class="pilot-decision-card">
+            <span class="pilot-card-badge">AI PILOT DECISION</span>
+            <div class="pilot-spec-row">
+              <div class="pilot-spec-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/></svg>
+                <span>生化危机：爆发夜 (2026) 4K.SDR/DV/HDR.内封双字</span>
+              </div>
+            </div>
+            <div class="pilot-path-badge" style="margin-top:0.4rem;">/nas/movie/生化危机：爆发夜 (2026)</div>
+            <div class="pilot-action-row">
+              <button type="button" class="pilot-btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>立即执行转存</span>
+              </button>
+              <button type="button" class="pilot-btn-secondary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>加入后台追更</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         方案 C：职责分离 (真 ReAct 对话式智能体独立页面)
+         ======================================================== -->
+    <section class="proto-scheme-card" id="scheme-c">
+      <div class="scheme-desc-banner">
+        <div>
+          <div class="scheme-meta-title">
+            <span class="scheme-badge">方案 C · 终极 Agent</span>
+            <span>职责分离架构 —— 弹窗只做秒级转存，独立「AI 对话」面板跑真 ReAct</span>
+          </div>
+          <div class="scheme-highlight">
+            转存弹窗采用方案 A，追求 3 秒无感极速交付；后续新增一级主菜单「Agent 助手」，类似 ChatGPT 界面，直接接上已封装的 5 个标准 MCP Tools，由 LLM 主导多轮自主循环。
+          </div>
+        </div>
+      </div>
+
+      <!-- ChatGPT 风格真 ReAct 聊天交互 -->
+      <div class="agent-chat-container">
+        <div class="agent-chat-header">
+          <div class="agent-info">
+            <div class="agent-avatar">AG</div>
+            <div>
+              <div class="agent-title-text">CloudDrive ReAct 智能体</div>
+              <div style="font-size: 0.7rem; color: var(--cg-ink-3);">基于标准 MCP Tools 驱动的自主决策推理回路</div>
+            </div>
+          </div>
+          <span class="agent-status-badge">
+            <span class="bus-dot" style="background:#137333;"></span>
+            5 个 MCP 工具已挂载
+          </span>
+        </div>
+
+        <div class="chat-messages-area">
+          <!-- 用户消息 -->
+          <div class="chat-bubble-user">
+            帮我找一部 4K 杜比视界的生化危机，挑画质最高、没有广告的，帮我转存到 /nas/movie 并按 Emby 规范重命名。
+          </div>
+
+          <!-- Agent 思考与自主工具调用回显 -->
+          <div class="chat-bubble-agent">
+            <div style="font-size:0.8rem; color:#6851ff; font-weight:700;">
+              💭 智能体自主思考 (Thought): 用户需要高画质 4K/杜比生化危机，我需要调用 <code>quark_search_share</code> 工具发起全网检索。
+            </div>
+
+            <!-- 工具调用 1 -->
+            <div class="react-tool-card">
+              <div class="tool-call-row">
+                <span>ACTION: 调用工具 quark_search_share</span>
+                <span>耗时 0.42s</span>
+              </div>
+              <div class="tool-args-box">{"query": "生化危机", "deep": false}</div>
+              <div class="tool-observation">↳ OBSERVATION: 全网共检索到 22 条候选链接，前 3 条包含 4K SDR/DV 规格。</div>
+            </div>
+
+            <div style="font-size:0.8rem; color:#6851ff; font-weight:700;">
+              💭 智能体自主反思 (Thought): 首选源检测到被分享者关闭，我需要自愈探查第 2 优选源 <code>https://pan.quark.cn/s/96a6027...</code> 的目录树结构。
+            </div>
+
+            <!-- 工具调用 2 -->
+            <div class="react-tool-card">
+              <div class="tool-call-row">
+                <span>ACTION: 调用工具 quark_inspect_tree</span>
+                <span>耗时 3.20s</span>
+              </div>
+              <div class="tool-args-box">{"shareurl": "https://pan.quark.cn/s/96a6027...", "max_depth": 3}</div>
+              <div class="tool-observation">↳ OBSERVATION: 探测成功！跳过 0 层套娃，正片位于主目录，4 个 4K 视频，无解压密码垃圾。</div>
+            </div>
+
+            <!-- 最终输出 (Final Answer) -->
+            <div style="font-size: 0.85rem; line-height: 1.5; color: var(--cg-ink); border-top: 1px dashed var(--cg-rule-soft); padding-top: 0.6rem;">
+              <strong>🎯 任务决策完成！</strong> 已为您精选 <strong>《生化危机：爆发夜 (2026) 4K.DV.内封双字》</strong>。<br>
+              • 目标路径：<code>/nas/movie/生化危机：爆发夜 (2026)</code><br>
+              • 自动重命名：<code>生化危机：爆发夜 (2026).mkv</code><br>
+              <div style="margin-top: 0.6rem; display: flex; gap: 8px;">
+                <button type="button" class="btn btn-primary" style="padding: 0.45rem 1rem; font-size: 0.8rem;">⚡ 确认并提交转存</button>
+                <button type="button" class="btn" style="padding: 0.45rem 0.8rem; font-size: 0.8rem;">换一个源</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-input-bar">
+          <input type="text" class="chat-input" placeholder="输入影视指令或网盘操作，如：帮我找权力的游戏全9季并分季转存...">
+          <button type="button" class="btn btn-primary" style="padding: 0.65rem 1.25rem;">发送指令</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    function switchScheme(schemeId) {
+      document.querySelectorAll('.proto-tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.proto-scheme-card').forEach(card => card.classList.remove('active'));
+
+      const targetCard = document.getElementById(schemeId);
+      if (targetCard) targetCard.classList.add('active');
+
+      if (schemeId === 'scheme-a') document.querySelectorAll('.proto-tab-btn')[0].classList.add('active');
+      if (schemeId === 'scheme-b') document.querySelectorAll('.proto-tab-btn')[1].classList.add('active');
+      if (schemeId === 'scheme-c') document.querySelectorAll('.proto-tab-btn')[2].classList.add('active');
+    }
+
+    let isRunning = false;
+    function toggleSchemeAState() {
+      isRunning = !isRunning;
+      const runningBox = document.getElementById('capsule-running');
+      const finishedBox = document.getElementById('capsule-finished');
+      if (isRunning) {
+        runningBox.style.display = 'inline-flex';
+        finishedBox.style.display = 'none';
+      } else {
+        runningBox.style.display = 'none';
+        finishedBox.style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud Drive Agent - AI 目录透视与直达转存原型设计方案</title>
+  <style>
+    /* ============================================================
+       0. 全局重置与控制台工具栏样式
+       ============================================================ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background-color: #1a1a19;
+      color: #eae9e4;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 顶部控制栏 */
+    .top-control-bar {
+      position: sticky;
+      top: 0;
+      z-index: 9999;
+      background: #111110;
+      border-bottom: 1px solid #2d2d2a;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-title .cad-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border: 1px solid #d4a017;
+      color: #d4a017;
+      font-size: 0.75rem;
+      font-family: monospace;
+      border-radius: 3px;
+    }
+
+    .control-groups {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .control-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.82rem;
+      color: #9c9a90;
+    }
+
+    .theme-switcher, .device-switcher {
+      display: inline-flex;
+      background: #1e1e1c;
+      border: 1px solid #333330;
+      border-radius: 4px;
+      padding: 2px;
+    }
+
+    .switcher-btn {
+      background: transparent;
+      border: none;
+      color: #9c9a90;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .switcher-btn:hover {
+      color: #eae9e4;
+    }
+
+    .switcher-btn.active {
+      background: #383834;
+      color: #ffffff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    /* 舞台主容器 */
+    .stage-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      background: #141413;
+      background-image: radial-gradient(#262624 1px, transparent 1px);
+      background-size: 20px 20px;
+      transition: all 0.3s ease;
+    }
+
+    /* 设备外壳 */
+    .device-frame {
+      width: 100%;
+      max-width: 1160px;
+      min-height: 820px;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    /* 手机模式外壳模拟器 */
+    .device-frame.mode-mobile {
+      max-width: 395px;
+      min-height: 780px;
+      height: 780px;
+      border: 10px solid #2d2d2a;
+      border-radius: 46px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.7), inset 0 0 0 2px #444;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }
+
+    .mobile-notch {
+      display: none;
+      height: 28px;
+      background: #2d2d2a;
+      width: 130px;
+      margin: 0 auto;
+      border-bottom-left-radius: 14px;
+      border-bottom-right-radius: 14px;
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+    }
+
+    .device-frame.mode-mobile .mobile-notch {
+      display: block;
+    }
+
+    .device-frame.mode-mobile .app-container {
+      overflow-y: auto;
+      height: 100%;
+      padding-top: 1rem;
+    }
+
+    /* ============================================================
+       1. 风格定义体系 (Theme Tokens)
+       ============================================================ */
+
+    /* 风格 A: ArtCraft 纸质工匠风 (原生默认，极简墨色、细线框、纸质温润感) */
+    .theme-artcraft {
+      --bg-page: #f8f6f0;
+      --bg-card: #f2eee3;
+      --bg-card-sub: #eae5d7;
+      --bg-highlight: #fffdf7;
+      --border-color: #d8d3c5;
+      --border-dark: #242320;
+      --border-dashed: #b5af9f;
+      --text-main: #1c1b18;
+      --text-muted: #6b675d;
+      --text-sub: #8c877b;
+      --accent: #1c1b18;
+      --accent-gold: #c78912;
+      --accent-gold-bg: rgba(199, 137, 18, 0.08);
+      --accent-green: #247547;
+      --accent-green-bg: #e6f3eb;
+      --accent-blue: #1b5b99;
+      --accent-blue-bg: #e7f0f9;
+      --accent-red: #b3261e;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --radius-sm: 2px;
+      --radius-md: 4px;
+      --shadow-card: 2px 2px 0px rgba(0,0,0,0.06);
+    }
+
+    /* 风格 B: Cyber Terminal 极客暗黑风 (黑底、高亮青蓝、微光发光、代码终端感) */
+    .theme-cyber {
+      --bg-page: #0c0e12;
+      --bg-card: #141820;
+      --bg-card-sub: #1b212c;
+      --bg-highlight: #202735;
+      --border-color: #273142;
+      --border-dark: #40526e;
+      --border-dashed: #36445a;
+      --text-main: #e6edf3;
+      --text-muted: #8b949e;
+      --text-sub: #6e7681;
+      --accent: #58a6ff;
+      --accent-gold: #f0883e;
+      --accent-gold-bg: rgba(240, 136, 62, 0.12);
+      --accent-green: #3fb950;
+      --accent-green-bg: rgba(63, 185, 80, 0.12);
+      --accent-blue: #38bdf8;
+      --accent-blue-bg: rgba(56, 189, 248, 0.12);
+      --accent-red: #f85149;
+      --font-mono: "JetBrains Mono", Consolas, "Fira Code", monospace;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --shadow-card: 0 4px 16px rgba(0,0,0,0.4);
+    }
+
+    /* 风格 C: Modern Clean 现代毛玻璃轻奢风 (柔光白/现代微渐变、圆角多、丝滑) */
+    .theme-modern {
+      --bg-page: #f0f2f5;
+      --bg-card: #ffffff;
+      --bg-card-sub: #f7f8fa;
+      --bg-highlight: #ffffff;
+      --border-color: #e2e6ea;
+      --border-dark: #ced4da;
+      --border-dashed: #c3cad1;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --text-sub: #94a3b8;
+      --accent: #3b82f6;
+      --accent-gold: #f59e0b;
+      --accent-gold-bg: #fef3c7;
+      --accent-green: #10b981;
+      --accent-green-bg: #d1fae5;
+      --accent-blue: #0284c7;
+      --accent-blue-bg: #e0f2fe;
+      --accent-red: #ef4444;
+      --font-mono: ui-monospace, SFMono-Regular, monospace;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 0 1px 1px rgba(0, 0, 0, 0.02);
+    }
+
+    /* ============================================================
+       2. 应用主体模拟界面
+       ============================================================ */
+    .app-container {
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      padding: 1.5rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-card);
+      transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+    }
+
+    /* 弹窗容器 */
+    .preview-modal-mock {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+
+    .modal-header-row {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      background: var(--bg-card-sub);
+    }
+
+    .modal-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .modal-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .modal-share-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      background: var(--bg-page);
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      word-break: break-all;
+    }
+
+    /* 核心亮点：AI 结构透视与智能直达建议卡片 */
+    .ai-insight-card {
+      margin: 1.25rem;
+      background: var(--bg-highlight);
+      border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius-md);
+      padding: 1.2rem;
+      position: relative;
+      box-shadow: var(--shadow-card);
+    }
+
+    .ai-card-badge-corner {
+      position: absolute;
+      top: -10px;
+      left: 14px;
+      background: var(--accent);
+      color: var(--bg-page);
+      font-size: 0.68rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .insight-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      margin-top: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .insight-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .device-frame.mode-mobile .insight-grid {
+      grid-template-columns: 1fr;
+    }
+
+    /* 结构透视部分 */
+    .insight-col-title {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 0.6rem;
+    }
+
+    /* 目录树可视化微缩图 */
+    .tree-visual-box {
+      background: var(--bg-card-sub);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      line-height: 1.55;
+    }
+
+    .tree-node {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 4px;
+      border-radius: 2px;
+      color: var(--text-muted);
+    }
+
+    .tree-node.waste-level {
+      text-decoration: line-through;
+      opacity: 0.6;
+    }
+
+    .tree-node.target-level {
+      background: var(--accent-green-bg);
+      color: var(--accent-green);
+      font-weight: 700;
+      border: 1px dashed var(--accent-green);
+    }
+
+    .tree-node-tag {
+      font-size: 0.65rem;
+      padding: 0 4px;
+      border-radius: 2px;
+      margin-left: auto;
+    }
+
+    /* 重命名对比卡片 */
+    .rename-compare-box {
+      background: var(--bg-card-sub);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .rename-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .rename-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      text-transform: uppercase;
+    }
+
+    .rename-val {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      word-break: break-all;
+      padding: 3px 6px;
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+    }
+
+    .rename-val.val-old {
+      color: var(--text-muted);
+      border-left: 3px solid var(--border-dashed);
+    }
+
+    .rename-val.val-new {
+      color: var(--accent-blue);
+      border-left: 3px solid var(--accent-blue);
+      font-weight: 600;
+    }
+
+    /* 动作按钮区 */
+    .insight-action-bar {
+      margin-top: 1rem;
+      padding-top: 0.85rem;
+      border-top: 1px dashed var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+    }
+
+    .insight-action-desc {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-apply-direct {
+      background: var(--accent);
+      color: var(--bg-page);
+      border: 1px solid var(--accent);
+      padding: 0.55rem 1.1rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+
+    .btn-apply-direct:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn-apply-direct:active {
+      transform: translateY(0);
+    }
+
+    /* 传统底层文件列表预览 */
+    .file-list-preview-section {
+      padding: 0 1.25rem 1.25rem;
+    }
+
+    .file-table-mock {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+    }
+
+    .file-table-mock th {
+      text-align: left;
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-sub);
+      font-weight: 600;
+      font-size: 0.72rem;
+    }
+
+    .file-table-mock td {
+      padding: 0.55rem 0.6rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    /* 主界面转存卡片模拟 (展示一键套用后的联动效果) */
+    .main-transfer-card-mock {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      position: relative;
+    }
+
+    .main-card-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .form-row label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-input-mock {
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.55rem 0.75rem;
+      font-size: 0.82rem;
+      font-family: var(--font-mono);
+      border-radius: var(--radius-sm);
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+
+    /* 高亮发光回填动画 */
+    .form-input-mock.flash-highlight {
+      border-color: var(--accent-gold) !important;
+      background: var(--accent-gold-bg) !important;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+    }
+
+    .transfer-actions-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+
+    .btn-transfer-run {
+      background: #1c1b18;
+      color: #fff;
+      padding: 0.6rem 1.4rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 顶部控制条 (风格选择 & 电脑端/手机端视口切换) -->
+  <header class="top-control-bar">
+    <div class="brand-title">
+      <span class="cad-badge">AG</span>
+      <span>Cloud Drive Agent · AI 目录透视与直达转存原型</span>
+    </div>
+
+    <div class="control-groups">
+      <!-- 风格切换 -->
+      <div class="control-item">
+        <span>视觉风格:</span>
+        <div class="theme-switcher">
+          <button class="switcher-btn active" onclick="setTheme('artcraft', this)">
+            <span>◈ 纸质工匠 (原生)</span>
+          </button>
+          <button class="switcher-btn" onclick="setTheme('cyber', this)">
+            <span>❖ 极客暗黑 (终端)</span>
+          </button>
+          <button class="switcher-btn" onclick="setTheme('modern', this)">
+            <span>● 现代轻奢 (毛玻璃)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 设备视口切换 -->
+      <div class="control-item">
+        <span>视口设备:</span>
+        <div class="device-switcher">
+          <button class="switcher-btn active" onclick="setDevice('desktop', this)">
+            <span>💻 电脑端 (Desktop)</span>
+          </button>
+          <button class="switcher-btn" onclick="setDevice('mobile', this)">
+            <span>📱 手机端 (Mobile)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 原型舞台 -->
+  <main class="stage-wrapper">
+    <div class="device-frame theme-artcraft" id="device-frame">
+      <div class="mobile-notch"></div>
+
+      <div class="app-container" id="app-container">
+        
+        <!-- 模块一：【🔍 预览弹窗内部】AI 结构透视与直达建议卡片 -->
+        <div class="preview-modal-mock">
+          <div class="modal-header-row">
+            <div class="modal-title-group">
+              <span style="color:var(--accent-gold);font-size:1.1rem;">◈</span>
+              <h2 class="modal-title">资源内容预览 · 庆余年 第二季 (4K 臻彩版)</h2>
+            </div>
+            <span class="modal-share-badge">https://pan.quark.cn/s/d8f072c1a4e2</span>
+          </div>
+
+          <!-- 核心功能卡片：AI 结构透视与智能决策 -->
+          <div class="ai-insight-card">
+            <div class="ai-card-badge-corner">
+              <span>◇</span> AI 目录透视与直达诊断
+            </div>
+
+            <div class="insight-grid">
+              <!-- 左侧：目录树扁平透视 -->
+              <div>
+                <div class="insight-col-title">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  <span>目录结构穿透 (已自动下探 3 层)</span>
+                </div>
+                <div class="tree-visual-box">
+                  <div class="tree-node waste-level">
+                    <span>/ (分享根目录)</span>
+                    <span class="tree-node-tag" style="background:#fad2cf;color:#c5221f;">含广告URL</span>
+                  </div>
+                  <div class="tree-node waste-level" style="padding-left:14px;">
+                    <span>└── /【4K首发压制组】/</span>
+                    <span class="tree-node-tag" style="background:#eee;color:#777;">空壳目录</span>
+                  </div>
+                  <div class="tree-node waste-level" style="padding-left:26px;">
+                    <span>    └── /庆余年.第二季.2160p/</span>
+                    <span class="tree-node-tag" style="background:#eee;color:#777;">空壳目录</span>
+                  </div>
+                  <div class="tree-node target-level" style="padding-left:38px;">
+                    <span>        └── /Season 01/</span>
+                    <span class="tree-node-tag" style="background:var(--accent-green);color:#fff;">★ 正片所在地 (30集)</span>
+                  </div>
+                  <div class="tree-node" style="padding-left:38px;opacity:0.6;">
+                    <span>        └── /Extra/ (花絮 2 个)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 右侧：智能重命名建议 -->
+              <div>
+                <div class="insight-col-title">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  <span>Emby / Plex 刮削重命名建议</span>
+                </div>
+                <div class="rename-compare-box">
+                  <div class="rename-row">
+                    <span class="rename-label">原始混乱文件名 (样本):</span>
+                    <div class="rename-val val-old">[HYSUB] 庆余年.S02E01.4K.60fps.HEVC.mkv</div>
+                  </div>
+                  <div class="rename-row">
+                    <span class="rename-label">建议标准规范名:</span>
+                    <div class="rename-val val-new">庆余年 - S02E01.mkv</div>
+                  </div>
+                  <div style="font-size:0.7rem;color:var(--text-sub);display:flex;align-items:center;justify-content:space-between;margin-top:2px;">
+                    <span>自动推断正则: <code>S(\d+)E(\d+)</code></span>
+                    <span>替换模板: <code>S$1E$2</code></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 关键动作区：一键直达与回填 -->
+            <div class="insight-action-bar">
+              <div class="insight-action-desc">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>点击将自动剥离外层两级空壳目录，直达靶心转存，并套用重命名规则</span>
+              </div>
+              <button type="button" class="btn-apply-direct" id="btn-trigger-apply" onclick="applyDirectUrlDemo()">
+                <span>⚡ 选用此直达链接并套用命名规则 ➔</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 底层文件清单预览 -->
+          <div class="file-list-preview-section">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--text-sub);margin-bottom:0.5rem;text-transform:uppercase;">
+              /Season 01/ 目录内文件清单预览 (共 30 个视频，总计 96.5 GB)
+            </div>
+            <table class="file-table-mock">
+              <thead>
+                <tr>
+                  <th>文件名</th>
+                  <th>大小</th>
+                  <th>格式</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>[HYSUB] 庆余年.S02E01.4K.60fps.HEVC.mkv</td>
+                  <td>3.2 GB</td>
+                  <td>MKV</td>
+                  <td style="color:var(--accent-green);">正片</td>
+                </tr>
+                <tr>
+                  <td>[HYSUB] 庆余年.S02E02.4K.60fps.HEVC.mkv</td>
+                  <td>3.1 GB</td>
+                  <td>MKV</td>
+                  <td style="color:var(--accent-green);">正片</td>
+                </tr>
+                <tr>
+                  <td>[HYSUB] 庆余年.S02E03.4K.60fps.HEVC.mkv</td>
+                  <td>3.3 GB</td>
+                  <td>MKV</td>
+                  <td style="color:var(--accent-green);">正片</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 模块二：主转存执行弹窗界面 (模拟回填联动效果) -->
+        <div class="main-transfer-card-mock">
+          <div class="main-card-title">
+            <span>主界面转存配置 (点击上方按钮观察本区域的智能自动回填)</span>
+            <span id="apply-status-tag" style="font-size:0.72rem;font-family:var(--font-mono);color:var(--text-muted);">等待一键套用...</span>
+          </div>
+
+          <div class="form-row">
+            <label>夸克网盘分享链接 (Share URL)</label>
+            <input type="text" class="form-input-mock" id="mock-main-shareurl" value="https://pan.quark.cn/s/d8f072c1a4e2" readonly>
+          </div>
+
+          <div class="form-row">
+            <label>命名匹配与重命名规则 (Pattern)</label>
+            <input type="text" class="form-input-mock" id="mock-main-pattern" value=".*" readonly>
+          </div>
+
+          <div class="form-row">
+            <label>目标网盘落地路径 (Save Path)</label>
+            <input type="text" class="form-input-mock" id="mock-main-savepath" value="nas/TV/庆余年 (2024)/庆余年 - S02" readonly>
+          </div>
+
+          <div class="transfer-actions-row">
+            <button type="button" class="btn-transfer-run" onclick="alert('演示模式：已成功触发立即转存！')">⚡ 立即执行转存</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // 切换风格函数
+    function setTheme(themeName, btn) {
+      const frame = document.getElementById('device-frame');
+      frame.classList.remove('theme-artcraft', 'theme-cyber', 'theme-modern');
+      frame.classList.add(`theme-${themeName}`);
+
+      document.querySelectorAll('.theme-switcher .switcher-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+
+    // 切换电脑端/手机端视口
+    function setDevice(deviceName, btn) {
+      const frame = document.getElementById('device-frame');
+      if (deviceName === 'mobile') {
+        frame.classList.add('mode-mobile');
+      } else {
+        frame.classList.remove('mode-mobile');
+      }
+
+      document.querySelectorAll('.device-switcher .switcher-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+
+    // 模拟一键直达与回填动画
+    function applyDirectUrlDemo() {
+      const urlInput = document.getElementById('mock-main-shareurl');
+      const patternInput = document.getElementById('mock-main-pattern');
+      const statusTag = document.getElementById('apply-status-tag');
+      const btn = document.getElementById('btn-trigger-apply');
+
+      // 更新为主正片直达链接 (带 #/list/share/{fid})
+      urlInput.value = 'https://pan.quark.cn/s/d8f072c1a4e2#/list/share/65a8820f1b-Season%2001';
+      patternInput.value = 'S(\\d+)E(\\d+) -> S$1E$2 [AI精准规则]';
+      
+      statusTag.innerText = '✓ 已完成直达链接回填与命名注入';
+      statusTag.style.color = 'var(--accent-green)';
+
+      // 闪烁高亮动画
+      urlInput.classList.add('flash-highlight');
+      patternInput.classList.add('flash-highlight');
+
+      btn.innerText = '✓ 已成功套用并直达底层正片';
+      btn.style.background = 'var(--accent-green)';
+
+      // 页面滚动平滑聚焦到转存主表单
+      document.querySelector('.main-transfer-card-mock').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      setTimeout(() => {
+        urlInput.classList.remove('flash-highlight');
+        patternInput.classList.remove('flash-highlight');
+      }, 1500);
+    }
+  </script>
+</body>
+</html>

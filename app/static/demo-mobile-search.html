@@ -1,0 +1,797 @@
+<title>移动端搜索方案</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* ============================================================
+     CineNaut · 移动端搜索方案
+     基线：米纸 #f7f6f2 / 墨线 #16150f / 强调绿 #1b7f43
+     ============================================================ */
+  :root {
+    --paper: #f7f6f2;
+    --paper-2: #f1efe8;
+    --paper-press: #e8e6dd;
+    --ink: #16150f;
+    --ink-2: #56544a;
+    --ink-3: #87847a;
+    --rule: #16150f;
+    --rule-soft: #d6d3c8;
+    --green: #1b7f43;
+    --gold: #c28800;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 64px;
+  }
+
+  .page-head {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 22px 0 16px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .brand-mark {
+    width: 34px; height: 34px;
+    border: 1.5px solid var(--ink);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-weight: 800; font-size: 12px;
+    letter-spacing: 0.04em; flex-shrink: 0;
+  }
+  .brand-name { font-size: 1.02rem; font-weight: 800; letter-spacing: -0.02em; }
+  .brand-name span { color: var(--ink-3); font-weight: 600; }
+  .brand-sub { font-size: 0.76rem; color: var(--ink-2); margin-top: 2px; }
+  .head-note {
+    font-family: var(--mono); font-size: 0.68rem; color: var(--ink-3);
+    text-align: right; line-height: 1.6; letter-spacing: 0.06em;
+  }
+  .head-note b { color: var(--ink); font-size: 0.9rem; }
+
+  .intro {
+    max-width: 1000px; margin: 18px auto 0;
+    font-size: 0.86rem; color: var(--ink-2); max-width: 70ch;
+  }
+  .intro strong { color: var(--ink); }
+
+  .switcher {
+    max-width: 1000px; margin: 18px auto 0;
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .sw-btn {
+    appearance: none; border: 1px solid var(--rule-soft);
+    background: var(--paper); color: var(--ink-2);
+    font-family: var(--sans); font-size: 0.8rem; font-weight: 700;
+    padding: 8px 12px; display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+  .sw-btn:hover { background: var(--paper-press); border-color: var(--ink-3); color: var(--ink); }
+  .sw-btn[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .sw-btn:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  .sw-idx { font-family: var(--mono); font-size: 0.68rem; font-weight: 800; opacity: 0.6; }
+  .sw-btn[aria-selected="true"] .sw-idx { opacity: 1; color: var(--gold); }
+
+  .stage {
+    max-width: 1000px; margin: 16px auto 0;
+    background: var(--paper-2);
+    border: 1px solid var(--rule-soft);
+    padding: clamp(14px, 2.4vw, 28px);
+    background-image:
+      linear-gradient(rgba(22, 21, 15, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(22, 21, 15, 0.035) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .stage-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
+    font-family: var(--mono); font-size: 0.72rem;
+  }
+  #stage-name { font-weight: 700; color: var(--ink); letter-spacing: 0.02em; }
+  #stage-tag { color: var(--ink-3); }
+
+  .stage-grid {
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: clamp(20px, 4vw, 40px);
+    align-items: start;
+  }
+
+  /* ============================================================
+     手机外壳
+     ============================================================ */
+  .phone {
+    width: 340px;
+    max-width: 100%;
+    height: 660px;
+    border: 7px solid var(--ink);
+    border-radius: 26px;
+    background: var(--paper);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 10px 12px 0 rgba(22, 21, 15, 0.12);
+    justify-self: center;
+  }
+
+  .screen {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background: var(--paper);
+    overflow: hidden;
+  }
+
+  .statusbar {
+    height: 24px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 14px;
+    font-family: var(--mono); font-size: 9px; color: var(--ink-2);
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .status-icons { letter-spacing: 2px; font-size: 8px; }
+
+  .app-top {
+    height: 46px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .icon-btn {
+    width: 28px; height: 28px;
+    border: 1px solid var(--rule);
+    background: var(--paper); color: var(--ink);
+    display: grid; place-items: center;
+    padding: 0; flex-shrink: 0;
+  }
+  .app-title { font-size: 12px; font-weight: 800; letter-spacing: -0.01em; }
+  .app-top .spacer { flex: 1; }
+
+  .app-body {
+    flex: 1; overflow: hidden;
+    padding: 10px 12px 16px;
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+
+  .chips { display: flex; gap: 5px; overflow: hidden; margin-bottom: 7px; flex-shrink: 0; }
+  .chip {
+    font-size: 9px; border: 1px solid var(--rule-soft);
+    padding: 3px 7px; white-space: nowrap;
+    background: var(--paper); color: var(--ink-2);
+  }
+  .chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  .poster-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 6px; align-content: start;
+  }
+  .poster {
+    position: relative; aspect-ratio: 2 / 3;
+    border: 1px solid var(--rule);
+    background:
+      linear-gradient(150deg, rgba(194, 136, 0, 0.18), transparent 55%),
+      repeating-linear-gradient(45deg, #26241c 0 6px, #191710 6px 12px);
+    overflow: hidden;
+  }
+  .p-badge {
+    position: absolute; top: 4px; left: 4px; z-index: 1;
+    font-family: var(--mono); font-size: 7px; color: var(--gold);
+    border: 1px solid rgba(194, 136, 0, 0.6);
+    padding: 0 3px; background: rgba(22, 21, 15, 0.55);
+  }
+  .p-title {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+    padding: 12px 4px 4px;
+    font-size: 8px; color: #f7f6f2;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ============================================================
+     方案 A：顶部全宽栏
+     ============================================================ */
+  .search-row {
+    margin: 9px 12px 10px;
+    height: 42px; flex-shrink: 0;
+    border: 1px solid var(--ink);
+    background: var(--paper-2);
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 11px;
+  }
+  .search-row .ph { flex: 1; font-size: 11px; color: var(--ink-3); }
+  .search-row .filter-btn {
+    width: 26px; height: 26px; border-left: 1px solid var(--rule-soft);
+    display: grid; place-items: center; color: var(--ink-2);
+  }
+
+  /* ============================================================
+     方案 B：全屏搜索页
+     ============================================================ */
+  .overlay {
+    position: absolute; inset: 24px 0 0 0;
+    background: var(--paper);
+    z-index: 10;
+    display: flex; flex-direction: column;
+  }
+  .overlay-top {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 12px 10px;
+    border-bottom: 1px solid var(--rule-soft);
+    flex-shrink: 0;
+  }
+  .overlay-input {
+    flex: 1; height: 40px;
+    border: 1px solid var(--ink);
+    background: var(--paper-2);
+    display: flex; align-items: center; gap: 7px;
+    padding: 0 10px; font-size: 11px; color: var(--ink-3);
+    min-width: 0;
+  }
+  .overlay-input .typed { color: var(--ink); font-weight: 600; }
+  .cursor {
+    width: 1px; height: 14px; background: var(--ink);
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  .overlay-cancel { font-size: 11px; font-weight: 700; color: var(--ink); flex-shrink: 0; }
+
+  .overlay-body { padding: 14px; overflow: hidden; }
+  .sec-label {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.1em; color: var(--ink-3);
+    margin-bottom: 7px;
+  }
+  .recent { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+  .recent span {
+    font-size: 10px; border: 1px solid var(--rule-soft);
+    padding: 4px 8px; color: var(--ink-2); background: var(--paper);
+  }
+  .sug-row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 0; border-bottom: 1px dashed var(--rule-soft);
+  }
+  .sug-thumb {
+    width: 26px; height: 36px; flex-shrink: 0;
+    border: 1px solid var(--rule);
+    background:
+      linear-gradient(150deg, rgba(194, 136, 0, 0.2), transparent 55%),
+      repeating-linear-gradient(45deg, #26241c 0 5px, #191710 5px 10px);
+  }
+  .sug-info { min-width: 0; }
+  .sug-title {
+    font-size: 11px; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sug-meta { font-family: var(--mono); font-size: 9px; color: var(--ink-3); margin-top: 1px; }
+
+  /* ============================================================
+     方案 C：底部悬浮搜索条
+     ============================================================ */
+  .v-c .app-body { padding-bottom: 78px; }
+  .bottom-search {
+    position: absolute; left: 14px; right: 14px; bottom: 16px;
+    height: 48px; z-index: 6;
+    background: var(--paper);
+    border: 1.5px solid var(--ink);
+    box-shadow: 3px 3px 0 rgba(22, 21, 15, 0.22);
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+  }
+  .bottom-search .ph { flex: 1; font-size: 11px; color: var(--ink-3); }
+  .bottom-search .filter-btn {
+    width: 26px; height: 26px; border-left: 1px solid var(--rule-soft);
+    display: grid; place-items: center; color: var(--ink-2);
+  }
+
+  /* ============================================================
+     方案 D：下拉搜索抽屉
+     ============================================================ */
+  .scrim {
+    position: absolute; inset: 24px 0 0 0;
+    background: rgba(22, 21, 15, 0.38);
+    z-index: 9;
+  }
+  .sheet {
+    position: absolute; left: 0; right: 0; top: 24px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--ink);
+    box-shadow: 0 8px 0 rgba(22, 21, 15, 0.12);
+    padding: 8px 12px 14px;
+    z-index: 10;
+  }
+  .sheet-handle {
+    width: 36px; height: 3px; background: var(--rule-soft);
+    margin: 0 auto 10px;
+  }
+  .sheet-input {
+    height: 40px; border: 1px solid var(--ink);
+    background: var(--paper-2);
+    display: flex; align-items: center; gap: 7px;
+    padding: 0 10px; font-size: 11px; color: var(--ink-3);
+  }
+  .sheet-filters { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+  .sheet-sug { margin-top: 12px; }
+
+  /* ============================================================
+     右侧说明
+     ============================================================ */
+  .spec { min-width: 0; }
+  .spec-kicker {
+    font-family: var(--mono); font-size: 0.68rem;
+    letter-spacing: 0.12em; color: var(--green);
+    font-weight: 700;
+  }
+  .spec h2 {
+    margin: 6px 0 8px; font-size: 1.25rem;
+    letter-spacing: -0.02em; line-height: 1.25;
+    text-wrap: balance;
+  }
+  .spec-desc { margin: 0 0 16px; font-size: 0.84rem; color: var(--ink-2); }
+
+  .spec-rows { display: flex; flex-direction: column; gap: 10px; }
+  .spec-row { display: grid; grid-template-columns: 40px 1fr; gap: 10px; }
+  .spec-row dt {
+    font-family: var(--mono); font-size: 0.64rem;
+    color: var(--ink-3); letter-spacing: 0.06em; padding-top: 2px;
+  }
+  .spec-row dd { margin: 0; font-size: 0.8rem; color: var(--ink-2); min-width: 0; }
+
+  .spec-entry {
+    margin-top: 18px; padding-top: 10px;
+    border-top: 1px solid var(--rule-soft);
+    font-family: var(--mono); font-size: 0.66rem;
+    color: var(--ink-3); letter-spacing: 0.04em;
+  }
+  .spec-entry b { color: var(--ink); font-weight: 700; }
+
+  /* ============================================================
+     对比与建议
+     ============================================================ */
+  .compare { max-width: 1000px; margin: 40px auto 0; }
+  .compare-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--rule); padding-bottom: 10px;
+  }
+  .compare-head h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
+  .compare-head p { margin: 0; font-size: 0.76rem; color: var(--ink-2); max-width: 54ch; }
+
+  .compare-grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px; margin-top: 16px;
+  }
+  .cmp-card {
+    border: 1px solid var(--rule-soft);
+    background: var(--paper);
+    padding: 14px 16px; min-width: 0;
+  }
+  .cmp-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cmp-idx {
+    font-family: var(--mono); font-size: 0.66rem; font-weight: 800;
+    border: 1px solid var(--ink); padding: 0 5px; line-height: 1.5;
+  }
+  .cmp-top h3 { margin: 0; font-size: 0.88rem; letter-spacing: -0.01em; }
+  .cmp-tag {
+    margin-left: auto; font-family: var(--mono); font-size: 0.6rem;
+    color: var(--green); border: 1px solid var(--green);
+    padding: 1px 5px; letter-spacing: 0.06em; white-space: nowrap;
+  }
+  .cmp-desc { margin: 8px 0 10px; font-size: 0.78rem; color: var(--ink-2); }
+  .cmp-list { display: flex; flex-direction: column; gap: 5px; }
+  .cmp-row { display: grid; grid-template-columns: 38px 1fr; gap: 8px; font-size: 0.73rem; }
+  .cmp-row dt {
+    font-family: var(--mono); color: var(--ink-3);
+    font-size: 0.64rem; letter-spacing: 0.06em; padding-top: 1px;
+  }
+  .cmp-row dd { margin: 0; color: var(--ink-2); min-width: 0; }
+
+  .callout {
+    max-width: 1000px; margin: 18px auto 0;
+    border-left: 3px solid var(--green);
+    background: var(--paper-2);
+    padding: 12px 14px;
+    font-size: 0.8rem; color: var(--ink-2);
+  }
+  .callout strong { color: var(--ink); }
+
+  .foot-note {
+    max-width: 1000px; margin: 26px auto 0;
+    font-family: var(--mono); font-size: 0.64rem; color: var(--ink-3);
+    letter-spacing: 0.06em;
+    border-top: 1px solid var(--rule-soft); padding-top: 10px;
+  }
+
+  /* ============================================================
+     响应式
+     ============================================================ */
+  @media (max-width: 820px) {
+    .stage-grid { grid-template-columns: 1fr; }
+    .phone { justify-self: center; }
+  }
+
+  @media (max-width: 640px) {
+    .page-head { padding-top: 16px; }
+    .head-note { text-align: left; }
+    .sw-btn { font-size: 0.74rem; padding: 7px 9px; }
+    .phone { width: 320px; height: 620px; }
+    .compare-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cursor { animation: none; }
+  }
+</style>
+
+<header class="page-head">
+  <div class="brand">
+    <div class="brand-mark">CN</div>
+    <div>
+      <div class="brand-name">CineNaut <span>/ 移动端搜索</span></div>
+      <div class="brand-sub">四种把搜索从顶栏解放出来的手机方案 · 可切换预览</div>
+    </div>
+  </div>
+  <div class="head-note">方案对比<br><b>4</b> OPTIONS</div>
+</header>
+
+<p class="intro">
+  当前手机端是 <strong>菜单 + 34px 搜索框挤在同一行</strong>：标题被隐藏、输入框很窄、联想下拉空间有限，
+  而且固定在屏幕最上方，单手很难够到。下面四套都沿用米纸 / 墨线体系，只改搜索的入口与层级。
+</p>
+
+<nav class="switcher" role="tablist" aria-label="移动端搜索方案">
+  <button class="sw-btn" role="tab" data-target="a" aria-selected="true">
+    <span class="sw-idx">A</span> 顶部全宽栏
+  </button>
+  <button class="sw-btn" role="tab" data-target="b" aria-selected="false" tabindex="-1">
+    <span class="sw-idx">B</span> 全屏搜索
+  </button>
+  <button class="sw-btn" role="tab" data-target="c" aria-selected="false" tabindex="-1">
+    <span class="sw-idx">C</span> 底部悬浮
+  </button>
+  <button class="sw-btn" role="tab" data-target="d" aria-selected="false" tabindex="-1">
+    <span class="sw-idx">D</span> 下拉抽屉
+  </button>
+</nav>
+
+<section class="stage" aria-live="polite">
+  <div class="stage-head">
+    <span id="stage-name">方案 A · 顶部全宽栏</span>
+    <span id="stage-tag">改动最小，仍在上方</span>
+  </div>
+
+  <!-- ================= A ================= -->
+  <div class="variant v-a" data-v="a">
+    <div class="stage-grid">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="status-icons">●●●</span></div>
+          <div class="app-top">
+            <button class="icon-btn" aria-label="菜单">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <span class="app-title">影视发现</span>
+            <span class="spacer"></span>
+          </div>
+
+          <div class="search-row">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span class="ph">搜索电影、剧集、演员</span>
+            <span class="filter-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="17" x2="14" y2="17"/></svg>
+            </span>
+          </div>
+
+          <div class="app-body">
+            <div class="chips"><span class="chip active">热门电影</span><span class="chip">最新</span><span class="chip">高分</span><span class="chip">剧集</span></div>
+            <div class="chips"><span class="chip active">全部</span><span class="chip">华语</span><span class="chip">欧美</span><span class="chip">日韩</span></div>
+            <div class="poster-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-kicker">OPTION A</div>
+        <h2>顶部全宽栏</h2>
+        <p class="spec-desc">保留顶栏结构，把搜索框从 34px 的挤压状态改成标题行下方的独立全宽栏，高度加到 44px。</p>
+        <dl class="spec-rows">
+          <div class="spec-row"><dt>优点</dt><dd>改动最小；搜索始终可见；输入框和联想列表都有完整宽度。</dd></div>
+          <div class="spec-row"><dt>注意</dt><dd>仍在屏幕最上方，单手够不到；键盘弹出后可视区域会进一步压缩。</dd></div>
+          <div class="spec-row"><dt>适用</dt><dd>不想大改结构，以浏览为主、搜索频率一般。</dd></div>
+        </dl>
+        <div class="spec-entry">入口：<b>常驻顶栏</b></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= B ================= -->
+  <div class="variant v-b" data-v="b" hidden>
+    <div class="stage-grid">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="status-icons">●●●</span></div>
+          <div class="app-top">
+            <button class="icon-btn" aria-label="菜单">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <span class="app-title">影视发现</span>
+            <span class="spacer"></span>
+            <button class="icon-btn" aria-label="搜索">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
+          </div>
+          <div class="app-body">
+            <div class="chips"><span class="chip active">热门电影</span><span class="chip">最新</span><span class="chip">高分</span></div>
+            <div class="poster-grid"></div>
+          </div>
+
+          <div class="overlay">
+            <div class="overlay-top">
+              <button class="icon-btn" aria-label="返回">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div class="overlay-input">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span class="typed">星际</span><span class="cursor"></span>
+              </div>
+              <span class="overlay-cancel">取消</span>
+            </div>
+            <div class="overlay-body">
+              <div class="sec-label">最近搜索</div>
+              <div class="recent"><span>星际穿越</span><span>繁花</span><span>沙丘 2</span></div>
+              <div class="sec-label">热门推荐</div>
+              <div class="sug-row"><div class="sug-thumb"></div><div class="sug-info"><div class="sug-title">星际穿越</div><div class="sug-meta">2014 · 科幻 / 剧情 · ★ 9.4</div></div></div>
+              <div class="sug-row"><div class="sug-thumb"></div><div class="sug-info"><div class="sug-title">星际迷航：发现号</div><div class="sug-meta">2017 · 科幻 / 冒险 · ★ 8.1</div></div></div>
+              <div class="sug-row"><div class="sug-thumb"></div><div class="sug-info"><div class="sug-title">星际宝贝</div><div class="sug-meta">2002 · 动画 / 家庭 · ★ 8.6</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-kicker">OPTION B</div>
+        <h2>全屏搜索页</h2>
+        <p class="spec-desc">顶栏只留一个搜索图标，点开后进入独立的全屏搜索页，输入框、最近搜索和联想结果都获得完整空间。</p>
+        <dl class="spec-rows">
+          <div class="spec-row"><dt>优点</dt><dd>专注、键盘友好；联想和最近搜索不再被 34px 顶栏挤压；是 iOS / Android 的通用心智。</dd></div>
+          <div class="spec-row"><dt>注意</dt><dd>多一次点击；返回路径必须清晰，否则容易迷失。</dd></div>
+          <div class="spec-row"><dt>适用</dt><dd>搜索是高频核心操作，愿意为它单独做一层。</dd></div>
+        </dl>
+        <div class="spec-entry">入口：<b>顶栏搜索图标</b> · 点开后全屏</div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= C ================= -->
+  <div class="variant v-c" data-v="c" hidden>
+    <div class="stage-grid">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="status-icons">●●●</span></div>
+          <div class="app-top">
+            <button class="icon-btn" aria-label="菜单">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <span class="app-title">影视发现</span>
+            <span class="spacer"></span>
+          </div>
+          <div class="app-body">
+            <div class="chips"><span class="chip active">热门电影</span><span class="chip">最新</span><span class="chip">高分</span><span class="chip">剧集</span></div>
+            <div class="chips"><span class="chip active">全部</span><span class="chip">华语</span><span class="chip">欧美</span><span class="chip">日韩</span></div>
+            <div class="poster-grid"></div>
+          </div>
+
+          <div class="bottom-search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span class="ph">搜索电影、剧集、演员</span>
+            <span class="filter-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="17" x2="14" y2="17"/></svg>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-kicker">OPTION C</div>
+        <h2>底部悬浮搜索条</h2>
+        <p class="spec-desc">把搜索入口放到屏幕底部、拇指自然落点，浏览时随时可以唤起；点击后进入 B 的全屏搜索页。</p>
+        <dl class="spec-rows">
+          <div class="spec-row"><dt>优点</dt><dd>单手可达；不占顶栏；浏览和搜索的切换成本最低。</dd></div>
+          <div class="spec-row"><dt>注意</dt><dd>会遮住底部内容，需要给内容预留 padding；要和 iPhone 安全区配合。</dd></div>
+          <div class="spec-row"><dt>适用</dt><dd>手机端为主，希望搜索像原生 App 一样随手可用。</dd></div>
+        </dl>
+        <div class="spec-entry">入口：<b>底部悬浮条</b> · 点开后进入全屏搜索</div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= D ================= -->
+  <div class="variant v-d" data-v="d" hidden>
+    <div class="stage-grid">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="status-icons">●●●</span></div>
+          <div class="app-top">
+            <button class="icon-btn" aria-label="菜单">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <span class="app-title">影视发现</span>
+            <span class="spacer"></span>
+            <button class="icon-btn" aria-label="搜索">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
+          </div>
+          <div class="app-body">
+            <div class="chips"><span class="chip active">热门电影</span><span class="chip">最新</span><span class="chip">高分</span></div>
+            <div class="poster-grid"></div>
+          </div>
+
+          <div class="scrim"></div>
+          <div class="sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-input">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span>搜索电影、剧集、演员</span>
+            </div>
+            <div class="sheet-filters">
+              <span class="chip active">全部类型</span><span class="chip">电影</span><span class="chip">剧集</span><span class="chip">动画</span>
+            </div>
+            <div class="sheet-filters">
+              <span class="chip active">全部地区</span><span class="chip">华语</span><span class="chip">欧美</span><span class="chip">日韩</span>
+            </div>
+            <div class="sheet-sug">
+              <div class="sug-row"><div class="sug-thumb"></div><div class="sug-info"><div class="sug-title">星际穿越</div><div class="sug-meta">2014 · 科幻 / 剧情 · ★ 9.4</div></div></div>
+              <div class="sug-row"><div class="sug-thumb"></div><div class="sug-info"><div class="sug-title">繁花</div><div class="sug-meta">2023 · 剧情 · ★ 8.7</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-kicker">OPTION D</div>
+        <h2>下拉搜索抽屉</h2>
+        <p class="spec-desc">从顶栏图标展开一层轻量抽屉，把搜索框和类型 / 地区筛选放在一起，不离开当前海报流。</p>
+        <dl class="spec-rows">
+          <div class="spec-row"><dt>优点</dt><dd>搜索与筛选一体；不离开当前页；比全屏搜索轻，返回成本低。</dd></div>
+          <div class="spec-row"><dt>注意</dt><dd>仍从顶部出现；抽屉高度、键盘和滚动要处理好，否则容易顶到内容。</dd></div>
+          <div class="spec-row"><dt>适用</dt><dd>搜索后经常要切分类 / 地区，或者希望保留当前浏览上下文。</dd></div>
+        </dl>
+        <div class="spec-entry">入口：<b>顶栏搜索图标</b> · 向下展开抽屉</div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="compare">
+  <div class="compare-head">
+    <h2>怎么选</h2>
+    <p>四套都只用现有 token 和 CSS，不改接口；选定后可以直接改顶栏与搜索弹层结构。</p>
+  </div>
+
+  <div class="compare-grid">
+    <article class="cmp-card">
+      <div class="cmp-top"><span class="cmp-idx">A</span><h3>顶部全宽栏</h3><span class="cmp-tag">改动最小</span></div>
+      <p class="cmp-desc">把搜索从 34px 挤压状态改成标题下方的独立全宽栏。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>优点</dt><dd>结构不变，输入与联想空间立刻变好</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>仍在最上方，单手够不到</dd></div>
+      </div>
+    </article>
+
+    <article class="cmp-card">
+      <div class="cmp-top"><span class="cmp-idx">B</span><h3>全屏搜索</h3><span class="cmp-tag">最专注</span></div>
+      <p class="cmp-desc">搜索图标进入独立全屏页，输入、最近搜索、联想都完整展开。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>优点</dt><dd>键盘友好，系统原生心智，空间最充足</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>多一次点击，返回路径要清晰</dd></div>
+      </div>
+    </article>
+
+    <article class="cmp-card">
+      <div class="cmp-top"><span class="cmp-idx">C</span><h3>底部悬浮</h3><span class="cmp-tag">最顺手</span></div>
+      <p class="cmp-desc">搜索条固定在拇指区，浏览时随时唤起，点击进入全屏搜索。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>优点</dt><dd>单手可达，切换成本最低，最像原生 App</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>遮挡底部内容，需要预留 padding 和安全区</dd></div>
+      </div>
+    </article>
+
+    <article class="cmp-card">
+      <div class="cmp-top"><span class="cmp-idx">D</span><h3>下拉抽屉</h3><span class="cmp-tag">搜索+筛选</span></div>
+      <p class="cmp-desc">从顶部展开轻量抽屉，搜索框与类型 / 地区筛选放在一起。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>优点</dt><dd>不离开当前页，保留浏览上下文</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>仍从顶部出现，抽屉与键盘高度要处理好</dd></div>
+      </div>
+    </article>
+  </div>
+
+  <div class="callout">
+    <strong>我的建议：</strong>移动端优先做 <strong>C + B</strong>——底部悬浮条负责“随手唤起”，点开后进入 B 的全屏搜索页；
+    如果暂时不想大改，先做 <strong>A</strong>；如果搜索后经常切类型 / 地区，选 <strong>D</strong>。
+  </div>
+
+  <div class="foot-note">
+    CINENAUT / MOBILE SEARCH · 米纸 #f7f6f2 · 墨线 #16150f · 强调绿 #1b7f43
+  </div>
+</section>
+
+<script>
+  (function () {
+    var POSTERS = [
+      ['星际穿越', '4K'], ['沙丘 2', '4K'], ['繁花', 'HD'],
+      ['奥本海默', '4K'], ['三体', 'HD'], ['可怜的东西', 'HD'],
+      ['年会不能停', 'HD'], ['周处除三害', 'HD'], ['灌篮高手', 'HD']
+    ];
+
+    document.querySelectorAll('.poster-grid').forEach(function (grid) {
+      grid.innerHTML = POSTERS.map(function (p) {
+        return '<div class="poster"><span class="p-badge">' + p[1] + '</span><span class="p-title">' + p[0] + '</span></div>';
+      }).join('');
+    });
+
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.sw-btn'));
+    var variants = Array.prototype.slice.call(document.querySelectorAll('.variant'));
+    var nameEl = document.getElementById('stage-name');
+    var tagEl = document.getElementById('stage-tag');
+
+    var meta = {
+      a: { name: '方案 A · 顶部全宽栏', tag: '改动最小，仍在上方' },
+      b: { name: '方案 B · 全屏搜索', tag: '最专注，键盘友好' },
+      c: { name: '方案 C · 底部悬浮', tag: '最顺手，拇指优先' },
+      d: { name: '方案 D · 下拉抽屉', tag: '搜索与筛选一体' }
+    };
+
+    function activate(key) {
+      variants.forEach(function (v) {
+        v.hidden = v.getAttribute('data-v') !== key;
+      });
+      tabs.forEach(function (t) {
+        var on = t.getAttribute('data-target') === key;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
+      });
+      var m = meta[key];
+      if (m) {
+        nameEl.textContent = m.name;
+        tagEl.textContent = m.tag;
+      }
+    }
+
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () {
+        activate(t.getAttribute('data-target'));
+      });
+      t.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+        var i = tabs.indexOf(t);
+        var n = (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[n].focus();
+        activate(tabs[n].getAttribute('data-target'));
+      });
+    });
+
+    activate('a');
+  })();
+</script>

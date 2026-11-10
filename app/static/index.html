@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CineNaut — 影视发现与云盘智能转存</title>
+  <link rel="stylesheet" href="/static/css/codegraph.css?v=9.9">
+</head>
+<body>
+  <!-- 移动端侧边栏遮罩 -->
+  <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
+  <div class="app-container">
+    <!-- 左侧工匠纸质风格边栏 (支持移动端滑动抽屉) -->
+    <aside class="sidebar" id="sidebar">
+      <div>
+        <div class="brand">
+          <div class="brand-main">
+            <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+            </svg>
+            <span>CineNaut</span>
+          </div>
+          <button class="sidebar-close-btn" id="sidebar-close-btn" aria-label="关闭侧边栏">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <nav class="nav-group">
+          <!-- 核心功能 1：影视发现 -->
+          <div class="nav-item active" data-tab="discover">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+            <span>影视发现</span>
+          </div>
+
+          <!-- 核心功能 2：转存任务列表 -->
+          <div class="nav-item" data-tab="tasks">
+            <div style="display:flex;align-items:center;gap:0.6rem;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              <span>任务列表</span>
+            </div>
+          </div>
+
+          <!-- 核心功能 3：系统配置 -->
+          <div class="nav-item" data-tab="settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>系统配置</span>
+          </div>
+        </nav>
+      </div>
+
+      
+    </aside>
+
+    <!-- 右侧主区域 -->
+    <main class="main-viewport">
+      <!-- 顶部状态栏 -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle-btn" id="menu-toggle-btn" aria-label="打开菜单">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <h1 class="topbar-title" id="topbar-title">影视发现</h1>
+        </div>
+
+        <!-- 顶栏全局 TMDB 搜索组件 -->
+        <div class="topbar-search-wrap" id="topbar-search-wrap">
+          <div class="topbar-search-box">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="topbar-search-input" class="topbar-search-input" placeholder="搜索全网电影、剧集、动画... (按 Enter 检索)" autocomplete="off">
+            <button type="button" class="search-clear-btn" id="topbar-search-clear" style="display: none;" title="清空搜索" onclick="clearGlobalSearchInput()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <kbd class="search-shortcut" title="快捷键 / 或 Ctrl+K">/</kbd>
+          </div>
+
+          <!-- 搜索即时联想下拉框 -->
+          <div class="topbar-search-dropdown" id="topbar-search-dropdown" style="display: none;">
+            <div class="search-dropdown-header">
+              <span id="search-dropdown-status">即时联想 (TMDB)</span>
+              <span class="search-dropdown-tip">按 Enter 查看全部</span>
+            </div>
+            <div class="search-dropdown-list" id="search-dropdown-list">
+              <!-- 动态联想结果 -->
+            </div>
+          </div>
+        </div>
+
+        <div class="topbar-right" id="topbar-status-group" style="display: none;">
+          <!-- TMDB 状态指示灯 (仅在系统配置页展现) -->
+          <div class="status-indicator" id="tmdb-status-badge" title="TMDB API 状态">
+            <span class="status-dot" id="tmdb-status-dot"></span>
+            <span id="tmdb-status-text">TMDB 检查中</span>
+          </div>
+          <!-- QAS 状态指示灯 (仅在系统配置页展现) -->
+          <div class="status-indicator" id="qas-status-badge" title="Quark-Auto-Save 服务状态">
+            <span class="status-dot" id="qas-status-dot"></span>
+            <span id="qas-status-text">QAS 检查中</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- 内容视口 -->
+      <section class="content-area">
+        <!-- 视图 1：影视发现 -->
+        <div id="view-discover">
+          <!-- 筛选控制栏 (移动端单行横向丝滑滑动) -->
+          <div class="filter-section">
+            <!-- 分类胶囊 -->
+            <div class="filter-row" id="filter-category">
+              <button class="filter-pill active" data-category="popular_movie">热门电影</button>
+              <button class="filter-pill" data-category="latest_movie">最新电影</button>
+              <button class="filter-pill" data-category="top_movie">高分佳片</button>
+              <button class="filter-pill" data-category="cold_movie">冷门佳片</button>
+              <button class="filter-pill" data-category="popular_tv">热门剧集</button>
+              <button class="filter-pill" data-category="popular_anime">热门动画</button>
+              <button class="filter-pill" data-category="popular_variety">热门综艺</button>
+              <button class="filter-pill" data-category="popular_doc">热门纪录片</button>
+            </div>
+
+            <!-- 地区语言胶囊 -->
+            <div class="filter-row" id="filter-region">
+              <button class="filter-pill active" data-region="all">全部</button>
+              <button class="filter-pill" data-region="zh">华语</button>
+              <button class="filter-pill" data-region="en">欧美</button>
+              <button class="filter-pill" data-region="ja">日本</button>
+              <button class="filter-pill" data-region="ko">韩国</button>
+            </div>
+          </div>
+
+          <!-- 全局搜索激活状态横幅 -->
+          <div class="search-active-banner" id="search-active-banner" style="display: none;">
+            <div class="search-banner-content">
+              <span class="search-banner-badge">搜索模式</span>
+              <span class="search-banner-text">关键词：<strong id="search-keyword-label" class="search-keyword-highlight"></strong></span>
+              <span id="search-count-label" class="search-count-text"></span>
+            </div>
+            <button type="button" class="btn btn-sm" onclick="exitGlobalSearch()">
+              ✕ 清空搜索，返回推荐流
+            </button>
+          </div>
+
+          <!-- 海报流展示区 -->
+          <div id="media-container">
+            <div class="state-box">
+              <div class="state-title">正在准备连接 TMDB 影视库...</div>
+              <div class="state-desc">若未配置 API 密钥，请在左侧点击【系统配置】进行配置</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 视图 2：转存任务列表 -->
+        <div id="view-tasks" style="display: none;">
+          <div class="config-layout">
+            <div class="config-card">
+              <div class="config-header">
+                <div>
+                  <h2 class="config-title">转存任务列表</h2>
+                  <span class="config-subtitle">实时同步后台定时转存与追更任务</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+                  <div id="tasks-batch-bar" style="display:none;align-items:center;gap:0.5rem;">
+                    <span id="tasks-selected-count" style="font-size:0.82rem;font-weight:700;color:var(--cg-accent);">已选 0 项</span>
+                    <button type="button" class="btn" style="color:var(--cg-danger);border-color:var(--cg-danger);padding:0.35rem 0.75rem;font-size:0.82rem;" onclick="batchDeleteSelectedTasks()">🗑️ 批量删除</button>
+                    <button type="button" class="btn" style="padding:0.35rem 0.65rem;font-size:0.82rem;" onclick="clearSelectedTasks()">取消选择</button>
+                  </div>
+                  <button type="button" class="btn" style="padding:0.35rem 0.75rem;font-size:0.82rem;" onclick="loadTasks(true)">刷新任务</button>
+                </div>
+              </div>
+
+              <div id="tasks-table-wrapper">
+                <div class="state-box">
+                  <div class="state-title">正在拉取转存任务列表...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 视图 3：系统配置 -->
+        <div id="view-settings" style="display: none;">
+          <div class="settings-wrapper">
+            <div class="config-layout">
+              <!-- 模块 1：各类型保存路径设置 -->
+              <div class="config-card" id="card-setting-paths">
+                <div class="config-header">
+                  <h2 class="config-title">各类型保存路径规则</h2>
+                  <span class="config-subtitle">可点击变量胶囊快速插入，转存时将自动套用解析至网盘目标目录</span>
+                </div>
+
+                <!-- 电影路径 -->
+                <div class="form-item">
+                  <div class="form-label-row">
+                    <label class="form-label">电影保存路径</label>
+                    <div class="variable-chips">
+                      <span class="chip" onclick="appendVariable('input-path-movie', '{片名}')">+{片名}</span>
+                      <span class="chip" onclick="appendVariable('input-path-movie', '{年份}')">+{年份}</span>
+                      <span class="chip" onclick="appendVariable('input-path-movie', '{分辨率}')">+{分辨率}</span>
+                    </div>
+                  </div>
+                  <input type="text" class="input-text" id="input-path-movie" placeholder="例如: nas/movie/{片名} ({年份})">
+                  <div class="input-preview" id="preview-path-movie">预览：nas/movie/星际穿越 (2014)</div>
+                </div>
+
+                <!-- 剧集路径 -->
+                <div class="form-item">
+                  <div class="form-label-row">
+                    <label class="form-label">剧集保存路径</label>
+                    <div class="variable-chips">
+                      <span class="chip" onclick="appendVariable('input-path-tv', '{剧名}')">+{剧名}</span>
+                      <span class="chip" onclick="appendVariable('input-path-tv', '{年份}')">+{年份}</span>
+                      <span class="chip" onclick="appendVariable('input-path-tv', '{季数}')">+{季数}</span>
+                      <span class="chip" onclick="appendVariable('input-path-tv', '{分辨率}')">+{分辨率}</span>
+                    </div>
+                  </div>
+                  <input type="text" class="input-text" id="input-path-tv" placeholder="例如: nas/TV/{剧名} ({年份})/{剧名} - S{季数}">
+                  <div class="input-preview" id="preview-path-tv">预览：nas/TV/繁花 (2023)/繁花 - S01</div>
+                </div>
+
+                <!-- 动画路径 -->
+                <div class="form-item">
+                  <div class="form-label-row">
+                    <label class="form-label">动画保存路径</label>
+                    <div class="variable-chips">
+                      <span class="chip" onclick="appendVariable('input-path-anime', '{剧名}')">+{剧名}</span>
+                      <span class="chip" onclick="appendVariable('input-path-anime', '{年份}')">+{年份}</span>
+                      <span class="chip" onclick="appendVariable('input-path-anime', '{季数}')">+{季数}</span>
+                    </div>
+                  </div>
+                  <input type="text" class="input-text" id="input-path-anime" placeholder="例如: nas/动画/{剧名} ({年份})/{剧名} - S{季数}">
+                  <div class="input-preview" id="preview-path-anime">预览：nas/动画/死神 千年血战篇 (2022)/死神 千年血战篇 - S01</div>
+                </div>
+
+                <!-- 综艺路径 -->
+                <div class="form-item">
+                  <div class="form-label-row">
+                    <label class="form-label">综艺保存路径</label>
+                    <div class="variable-chips">
+                      <span class="chip" onclick="appendVariable('input-path-variety', '{剧名}')">+{剧名}</span>
+                      <span class="chip" onclick="appendVariable('input-path-variety', '{年份}')">+{年份}</span>
+                      <span class="chip" onclick="appendVariable('input-path-variety', '{季数}')">+{季数}</span>
+                    </div>
+                  </div>
+                  <input type="text" class="input-text" id="input-path-variety" placeholder="例如: nas/综艺/{剧名} ({年份})/{剧名} - S{季数}">
+                  <div class="input-preview" id="preview-path-variety">预览：nas/综艺/歌手2024 (2024)/歌手2024 - S01</div>
+                </div>
+
+                <!-- 纪录片路径 -->
+                <div class="form-item">
+                  <div class="form-label-row">
+                    <label class="form-label">纪录片保存路径</label>
+                    <div class="variable-chips">
+                      <span class="chip" onclick="appendVariable('input-path-doc', '{剧名}')">+{剧名}</span>
+                      <span class="chip" onclick="appendVariable('input-path-doc', '{年份}')">+{年份}</span>
+                      <span class="chip" onclick="appendVariable('input-path-doc', '{季数}')">+{季数}</span>
+                    </div>
+                  </div>
+                  <input type="text" class="input-text" id="input-path-doc" placeholder="例如: 纪录片/{剧名} ({年份})/{剧名} - S{季数}">
+                  <div class="input-preview" id="preview-path-doc">预览：纪录片/地球脉动 (2023)/地球脉动 - S03</div>
+                </div>
+              </div>
+
+              <!-- 模块 2：Quark-Auto-Save (QAS) 自动转存服务配置 -->
+              <div class="config-card" id="card-setting-qas">
+                <div class="config-header">
+                  <h2 class="config-title">Quark-Auto-Save (QAS) 服务对接</h2>
+                  <span class="config-subtitle">对接 QAS 自动化引擎，实现一键下发转存与定时追更</span>
+                </div>
+
+                <div class="form-item">
+                  <label class="form-label">QAS 服务地址 (Base URL)</label>
+                  <input type="text" class="input-text" id="input-qas-base" placeholder="例如: http://localhost:5005 (Docker部署请填写内网IP或容器名)">
+                </div>
+
+                <div class="form-item">
+                  <label class="form-label">QAS API Token</label>
+                  <input type="password" class="input-text" id="input-qas-token" placeholder="可在 QAS WebUI【系统配置 -> API】处获取或填管理密码衍生的 Token">
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; flex-wrap: wrap;">
+                  <button type="button" class="btn" id="btn-verify-qas" onclick="verifyQas()">测试 QAS 连通性</button>
+                  <div id="verify-qas-result" style="display: none; font-size: 0.88rem; font-family: var(--font-mono);"></div>
+                </div>
+              </div>
+
+              <!-- 模块 3：TMDB 服务与密钥设置 -->
+              <div class="config-card" id="card-setting-tmdb">
+                <div class="config-header">
+                  <h2 class="config-title">TMDB API 与网络配置</h2>
+                  <a href="https://www.themoviedb.org/settings/api" target="_blank" class="config-subtitle" style="text-decoration: underline; color: var(--cg-ink);">获取 TMDB API Key ↗</a>
+                </div>
+
+                <div class="form-item">
+                  <label class="form-label">TMDB API 密钥 (API Key 或 Read Access Token)</label>
+                  <input type="password" class="input-text" id="input-tmdb-key" placeholder="在此粘贴您的 TMDB API 密钥">
+                </div>
+
+                <div class="form-item">
+                  <label class="form-label">TMDB API 基址 (国内若被拦截可填反代地址)</label>
+                  <input type="text" class="input-text" id="input-tmdb-base" placeholder="默认: https://api.themoviedb.org">
+                </div>
+
+                <div class="form-item">
+                  <label class="form-label">HTTP / SOCKS 代理 (可选)</label>
+                  <input type="text" class="input-text" id="input-proxy" placeholder="例如: http://127.0.0.1:7890 (容器部署填宿主机代理或留空)">
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; flex-wrap: wrap;">
+                  <button type="button" class="btn" id="btn-verify-tmdb" onclick="verifyTmdb()">测试 TMDB 连通性</button>
+                  <div id="verify-result" style="display: none; font-size: 0.88rem; font-family: var(--font-mono);"></div>
+                </div>
+              </div>
+
+              <!-- 模块 4：AI 智能质检与排序配置 (OpenAI 兼容 / DeepSeek / 通义千问等) -->
+              <div class="config-card" id="card-setting-llm">
+                <div class="config-header">
+                  <h2 class="config-title">AI 智能质检与挑优 (LLM Agent)</h2>
+                  <span class="config-subtitle">自动识别 4K/HDR 优质源、剔除广告引流、按品质与完结度智能置顶推荐</span>
+                </div>
+
+                <div class="form-item">
+                  <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500;">
+                    <input type="checkbox" id="input-llm-enabled" checked>
+                    <span>启用AI</span>
+                  </label>
+                  <div style="font-size: 0.76rem; color: var(--cg-ink-3); margin-top: 0.25rem;">
+                    未配置或接口异常时，系统将自动无缝降级至内置启发式规则引擎，保证搜索绝不卡死。
+                  </div>
+                </div>
+
+                <div class="form-item">
+                  <label class="form-label">大模型 API 基址 (OpenAI 兼容 Base URL)</label>
+                  <input type="text" class="input-text" id="input-llm-base" placeholder="例如: https://api.deepseek.com/v1 或 https://api.openai.com/v1">
+                </div>
+
+                <div class="form-item">
+                  <label class="form-label">大模型 API 密钥 (API Key)</label>
+                  <input type="password" class="input-text" id="input-llm-key" placeholder="在此粘贴您的 DeepSeek / OpenAI / Kimi 等 API 密钥">
+                </div>
+
+                <div class="form-item">
+                  <label class="form-label">模型名称 (Model Name)</label>
+                  <input type="text" class="input-text" id="input-llm-model" placeholder="默认: deepseek-chat (或 gpt-4o-mini, qwen-plus 等)">
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; flex-wrap: wrap;">
+                  <button type="button" class="btn" id="btn-verify-llm" onclick="verifyLlm()">测试 LLM 连通性</button>
+                  <div id="verify-llm-result" style="display: none; font-size: 0.88rem; font-family: var(--font-mono);"></div>
+                </div>
+              </div>
+
+              <!-- 底部保存按钮 -->
+              <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button type="button" class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1rem; width: 100%; max-width: 220px;" onclick="saveConfig()">保存全部配置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ArtCraft 签名级全屏通顶通底精密直尺滚动轨道与动力学文字系统 (Precision Ruler & Kinetic Typography) -->
+      <aside class="settings-ruler-rail" id="settings-ruler-rail" style="display: none;" role="scrollbar" aria-label="页面精密刻度滚动轨">
+        <div class="ruler-rail-header">
+          <span class="ruler-rail-cad">◇</span>
+          <span class="ruler-rail-title">SCALE</span>
+        </div>
+
+        <!-- ArtCraft 原版字符级圆弧动力学文字排布容器 (Char-by-Char Arc Kinetics) -->
+        <div class="ruler-kinetic-container" id="ruler-kinetic-container">
+          <!-- 1. 顶部纵向旋转沉淀栈：已滚过的章节以垂直 90 度纵向排列在刻度尺旁 -->
+          <div class="kinetic-dock-top" id="kinetic-dock-top"></div>
+
+          <!-- 2. 中央圆弧粒子动画舞台：支持一个字母一个字母沿弧线升起与沉淀 -->
+          <div class="kinetic-arc-stage" id="kinetic-arc-stage"></div>
+
+          <!-- 3. 底部水平沉淀池：尚未滚到的章节整齐水平堆叠在下方，点击可平滑直达 -->
+          <div class="kinetic-dock-bottom" id="kinetic-dock-bottom"></div>
+        </div>
+
+        <div class="ruler-rail-track" id="ruler-rail-track">
+          <!-- 真实大尺度滚动长卷尺 (Tape Scroll Layer: 每 1% 占 48px，总长数千像素，随视口滚动平滑位移) -->
+          <div class="ruler-tape-scroll" id="ruler-tape-scroll">
+            <div class="ruler-ticks-layer" id="ruler-ticks-layer"></div>
+          </div>
+
+          <!-- 原版固定位置电光蓝游标 (位于视口偏下方约 68% 高度处，刻度线穿梭对齐) -->
+          <div class="ruler-fixed-needle" id="ruler-fixed-needle">
+            <div class="ruler-needle-line"></div>
+            <div class="ruler-needle-tag" id="ruler-percent-tag">000%</div>
+          </div>
+
+          <!-- 鼠标悬停虚影线 Ghost Line -->
+          <div class="ruler-ghost-line" id="ruler-ghost"></div>
+        </div>
+
+        <div class="ruler-rail-footer">
+          <span class="ruler-rail-foot-label">100%</span>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- 转存助手弹窗 (Modal) -->
+  <div class="modal-backdrop" id="modal-transfer">
+    <div class="modal-dialog">
+      <!-- TMDB 官方规范：以宽幅剧照为全景背景的影视头部 Hero 卡片 -->
+      <div class="tmdb-hero-header" id="modal-hero">
+        <div class="tmdb-hero-backdrop" id="modal-hero-bg"></div>
+        <div class="tmdb-hero-overlay"></div>
+        
+        <!-- 右上角毛玻璃微光关闭按钮 -->
+        <button class="tmdb-hero-close" onclick="closeTransferModal()" aria-label="关闭" title="关闭 (Esc)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+
+        <!-- 头部主体内容：左侧竖版海报，右侧影片标题、评分与简介 -->
+        <div class="tmdb-hero-content">
+          <img class="tmdb-hero-poster" id="modal-poster" src="" alt="封面">
+          <div class="tmdb-hero-info">
+            <div class="tmdb-hero-top-row">
+              <div class="tmdb-hero-title" id="modal-title">影片标题</div>
+              <div class="tmdb-hero-rating" id="modal-rating">★ 0.0</div>
+            </div>
+            <div class="tmdb-hero-tags">
+              <span id="modal-year">年份</span>
+              <span>•</span>
+              <span id="modal-category">类型</span>
+            </div>
+            <p class="tmdb-hero-overview" id="modal-overview">剧情简介加载中...</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <!-- 模式切换选项卡：智能托管 vs 专家手动 -->
+        <div class="modal-mode-tabs" id="modal-mode-tabs">
+          <button type="button" class="modal-mode-tab active" id="tab-btn-pilot" onclick="switchTransferMode('pilot')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span>Auto-Pilot</span>
+          </button>
+          <button type="button" class="modal-mode-tab" id="tab-btn-manual" onclick="switchTransferMode('manual')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>专家手动微调</span>
+          </button>
+        </div>
+
+        <!-- 模式 1：Auto-Pilot 智能托管面板 -->
+        <div class="pilot-panel" id="modal-panel-pilot">
+          <!-- 方案 A：DeepSeek / ChatGPT 极简思考胶囊流 -->
+          <div class="deepseek-capsule-box" id="deepseek-capsule-box">
+            <!-- 状态 1：思考中 (微光旋转星标 + 阶段文字 + 动态耗时) -->
+            <div id="capsule-running" class="thought-capsule-running" style="display: none;">
+              <svg class="shimmer-sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polygon points="12 2 15 9 22 12 15 15 12 22 9 9 12 2"/>
+              </svg>
+              <span id="capsule-running-text">AI 正在唤醒决策智能体...</span>
+            </div>
+
+            <!-- 状态 2：思考完成 (极简收敛折叠条，默认完全收起) -->
+            <div id="capsule-finished" class="thought-bar-finished" style="display: none;">
+              <div class="thought-summary-header" onclick="this.parentElement.classList.toggle('open')">
+                <span class="thought-tag-done">
+                  <span class="thought-dot-green"></span>
+                  <span id="capsule-finished-summary">已完成深度推理决策</span>
+                </span>
+                <span class="thought-arrow">查看思考过程 ▾</span>
+              </div>
+              <div class="thought-body-prose" id="capsule-thought-body">
+                <!-- 动态填充 4 个纯净思考步骤 -->
+              </div>
+            </div>
+          </div>
+
+          <!-- 兼容占位元素 (方案 A 模式下隐藏，避免老脚本报错) -->
+          <div class="agent-pipeline-bus" id="pipeline-bus" style="display: none !important;">
+            <div class="pipeline-step" id="bus-step-1"></div>
+            <div class="pipeline-step" id="bus-step-2"></div>
+            <div class="pipeline-step" id="bus-step-3"></div>
+            <div class="pipeline-step" id="bus-step-4"></div>
+          </div>
+          <div class="agent-reasoning-card" id="reasoning-card" style="display: none !important;">
+            <div id="reasoning-status"></div>
+            <div id="reasoning-meta"></div>
+            <div id="reasoning-stream"></div>
+          </div>
+
+          <!-- 等待态：精工刻度 (Precision Ruler) -->
+          <div id="pilot-skeleton-card" class="pilot-ruler-card" style="display: none;">
+            <div class="pr-head">
+              <span>AUTO-PILOT / PRECISION PASS</span>
+              <span class="pr-clock">T+<b id="pr-elapsed">00.0</b>s</span>
+            </div>
+
+            <div class="pr-title" id="pr-title">正在检索与校验</div>
+            <div class="pr-sub" id="pr-sub">准备连接全网盘搜引擎…</div>
+
+            <div class="pr-scale">
+              <div class="pr-fill" id="pr-fill"></div>
+              <div class="pr-ticks"></div>
+              <div class="pr-marker" id="pr-marker"><span id="pr-percent">0%</span></div>
+            </div>
+            <div class="pr-labels"><span>检索</span><span>评分</span><span>穿透</span><span>落盘</span></div>
+
+            <div class="pr-skel">
+              <span class="pr-bar" style="width:54%"></span>
+              <span class="pr-bar" style="width:30%"></span>
+            </div>
+
+            <div class="pr-foot">
+              <span id="pr-step">STEP 01 / 04</span>
+              <span id="pr-status">全网检索中</span>
+            </div>
+          </div>
+
+          <!-- 最终落盘决策卡 (方案 A 下占据绝对视觉焦点，直接呈现) -->
+          <div id="pilot-decision-container"></div>
+        </div>
+
+        <!-- 模式 2：专家手动配置面板 -->
+        <div id="modal-panel-manual" style="display: none;">
+          <!-- 目标保存目录 (整套转存模式) -->
+          <div class="form-item">
+            <label class="form-label">网盘保存路径 (将整套文件保存至该目录)</label>
+            <input type="text" class="input-text" id="modal-savepath" placeholder="/影视/...">
+          </div>
+
+          <!-- 夸克分享资源搜索 -->
+          <div class="form-item">
+            <div class="form-label-row">
+              <label class="form-label">夸克网盘资源检索 (PanSou / CloudSaver)</label>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <label style="font-size:0.75rem;display:flex;align-items:center;gap:4px;cursor:pointer;" title="开启后将根据画质与纯净度自动排序，过滤垃圾广告引流">
+                  <input type="checkbox" id="modal-ai-rank" checked>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -1px;"><polygon points="12 2 15 9 22 12 15 15 12 22 9 9 12 2"/></svg>
+                  <span>AI 智能质检</span>
+                </label>
+                <label style="font-size:0.75rem;display:flex;align-items:center;gap:4px;cursor:pointer;">
+                  <input type="checkbox" id="modal-deep-search"> 深度搜索
+                </label>
+              </div>
+            </div>
+            <div class="search-box-row">
+              <input type="text" class="input-text" id="modal-search-kw" placeholder="输入关键词搜索夸克资源">
+              <button type="button" class="btn" id="modal-search-btn" onclick="searchModalResources()">检索资源</button>
+            </div>
+            <div id="modal-search-ai-badge" style="display:none;margin-top:0.45rem;font-size:0.74rem;color:var(--cg-ink-2);background:var(--cg-paper-2);border:1px solid var(--cg-rule-soft);border-radius:2px;padding:0.35rem 0.65rem;align-items:center;justify-content:space-between;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--cg-ink-2);"><polygon points="12 2 15 9 22 12 15 15 12 22 9 9 12 2"/></svg>
+                <span id="modal-search-ai-status">已完成智能画质甄别与防引流过滤</span>
+              </div>
+              <span id="modal-search-ai-evaluator" style="font-family:var(--font-mono);font-size:0.68rem;color:var(--cg-ink-3);letter-spacing:0.5px;text-transform:uppercase;"></span>
+            </div>
+            <div class="search-results-list" id="modal-search-results">
+              <div style="padding:1.5rem;text-align:center;font-size:0.82rem;color:var(--cg-ink-3);">点击【检索资源】开始全网搜索夸克分享链接...</div>
+            </div>
+          </div>
+
+          <!-- 当前选中的分享链接 -->
+          <div class="form-item">
+            <div class="form-label-row">
+              <label class="form-label">夸克分享链接 (Share URL)</label>
+              <button type="button" class="btn" style="padding:0.15rem 0.55rem;font-size:0.75rem;" onclick="openShareBrowserFromInput()">🔍 查看内容 / 正则预览</button>
+            </div>
+            <input type="text" class="input-text" id="modal-shareurl" placeholder="https://pan.quark.cn/s/...">
+          </div>
+
+          <div class="transfer-options-grid">
+            <div class="form-item">
+              <div class="form-label-row">
+                <label class="form-label">命名匹配规则</label>
+              </div>
+              <select class="input-text" id="modal-pattern" style="height:36px;">
+                <option value=".*">保持原名全量转存 (.*) [推荐]</option>
+                <option value="$TV">智能剧集重命名 ($TV) [QAS内置]</option>
+                <option value="\.(mp4|mkv|avi|mov|flv|ts|wmv)$">仅常见视频文件</option>
+              </select>
+              <div style="margin-top:0.35rem;font-size:0.72rem;color:var(--cg-ink-3);">
+                用于过滤文件或自动规范重命名（如 $TV 自动识别剧集）
+              </div>
+            </div>
+            <div class="form-item">
+              <div class="form-label-row">
+                <label class="form-label">子目录透传模式</label>
+              </div>
+              <select class="input-text" id="modal-subdir" style="height:36px;" onchange="onSubdirSelectChange()">
+                <option value=".*">全部递归穿透 (.*) [默认推荐]</option>
+                <option value="4[kK]|2160[pP]">仅穿透 4K/2160P 原画目录</option>
+                <option value="1080[pP]">仅穿透 1080P 高清目录</option>
+                <option value="S\d+|[第0-9]+季">仅穿透分季目录 (如 S01 / 第1季)</option>
+                <option value="^$">仅转存根目录 (不进入任何子文件夹)</option>
+                <option value="__custom__">自定义正则表达式...</option>
+              </select>
+              <div id="modal-subdir-custom-wrap" style="display:none;margin-top:0.35rem;">
+                <input type="text" class="input-text" id="modal-subdir-custom" placeholder="输入自定义正则表达式，如 720[pP]" style="height:36px;">
+              </div>
+              <div style="margin-top:0.35rem;font-size:0.72rem;color:var(--cg-ink-3);">
+                控制是否深入多层子文件夹（默认 .* 遍历所有层级）
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 执行日志控制台：放在两个面板之外，Pilot / 手动模式都能看到 -->
+        <div class="form-item modal-console-wrap" id="modal-console-section" style="display: none;">
+          <div class="form-label-row">
+            <label class="form-label">QAS 执行日志 (Server-Sent Events)</label>
+            <button type="button" class="btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="closeTransferModal()">✕ 完成并关闭弹窗</button>
+          </div>
+          <div class="console-box" id="modal-console">等待转存任务启动...</div>
+        </div>
+      </div>
+
+      <!-- 底部操作栏（在 Auto-Pilot 智能托管模式下整块隐藏，专家手动模式下展示） -->
+      <div class="modal-footer" id="transfer-modal-footer" style="display: none;">
+        <button type="button" class="btn" onclick="closeTransferModal()">关闭</button>
+        <div class="modal-footer-actions">
+          <button type="button" class="btn" id="btn-add-qas-task" onclick="submitModalTask(false, this)">
+            <span class="btn-text-full">+ 加入后台定时追更</span>
+            <span class="btn-text-short">+ 后台追更</span>
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-run-qas-now" onclick="submitModalTask(true, this)">
+            <span class="btn-text-full">⚡ 立即执行转存</span>
+            <span class="btn-text-short">⚡ 立即转存</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 移动端全部结果抽屉 -->
+  <div class="results-drawer-backdrop" id="results-drawer-backdrop">
+    <div class="results-drawer" role="dialog" aria-modal="true" aria-label="全部搜索结果">
+      <div class="results-drawer-head">
+        <div>
+          <div class="results-drawer-title">全部搜索结果</div>
+          <div class="results-drawer-sub" id="results-drawer-count">0 条</div>
+        </div>
+        <button type="button" class="results-drawer-close" onclick="closeResultsDrawer()" aria-label="关闭">✕</button>
+      </div>
+      <div class="results-drawer-filters" id="results-drawer-filters">
+        <button type="button" class="drawer-chip active" data-filter="all">全部</button>
+        <button type="button" class="drawer-chip" data-filter="4k">4K</button>
+        <button type="button" class="drawer-chip" data-filter="1080">1080P</button>
+        <button type="button" class="drawer-chip" data-filter="other">其他</button>
+        <span class="drawer-sep"></span>
+        <button type="button" class="drawer-chip active" data-sort="score">按评分</button>
+        <button type="button" class="drawer-chip" data-sort="date">按时间</button>
+      </div>
+      <div class="results-drawer-list" id="results-drawer-list"></div>
+    </div>
+  </div>
+
+  <!-- 分享内容浏览与正则预览弹窗 (Modal) -->
+  <div class="modal-backdrop" id="modal-share-browser">
+    <div class="modal-dialog browser-dialog">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>选择需转存的文件夹 (内容与正则预览)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <div id="browser-pager-group" style="display:none;align-items:center;gap:0.35rem;">
+            <button type="button" class="btn" style="padding:0.2rem 0.5rem;font-size:0.75rem;" id="btn-browser-prev" onclick="navigateBrowserCandidate(-1)">上一个</button>
+            <button type="button" class="btn" style="padding:0.2rem 0.5rem;font-size:0.75rem;" id="btn-browser-next" onclick="navigateBrowserCandidate(1)">下一个</button>
+          </div>
+          <button class="modal-close-btn" onclick="closeShareBrowser()" aria-label="关闭">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 分享信息栏与正则选择控制 -->
+      <div class="browser-subinfo-row">
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;flex:1;">
+          <div>
+            <strong id="browser-share-title" style="font-size:0.9rem;">分享标题</strong>
+            <span id="browser-share-source" style="font-size:0.75rem;color:var(--cg-accent);margin-left:0.5rem;"></span>
+          </div>
+          <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--cg-ink-3);" id="browser-share-url-text">https://pan.quark.cn/...</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <label style="font-size:0.78rem;font-weight:700;color:var(--cg-ink-2);white-space:nowrap;">命名规则实时预览:</label>
+          <select class="input-text" id="browser-pattern-select" style="height:32px;font-size:0.78rem;padding:0.2rem 0.6rem;min-width:210px;background-color:#ffffff;" onchange="onBrowserPatternChange()">
+            <!-- 动态同步预设 -->
+          </select>
+        </div>
+      </div>
+
+      <!-- 面包屑导航栏 -->
+      <div class="browser-breadcrumb-bar" id="browser-breadcrumb">
+        <span class="breadcrumb-crumb active">🏠 根目录</span>
+      </div>
+
+      <!-- 文件列表表格 -->
+      <div class="browser-table-wrapper" id="browser-table-wrapper">
+        <div style="padding:2rem;text-align:center;font-size:0.85rem;color:var(--cg-ink-3);">正在拉取分享文件清单...</div>
+      </div>
+
+      <!-- 底部控制栏 -->
+      <div class="modal-footer" style="justify-content:space-between;">
+        <div id="browser-footer-status" style="font-size:0.8rem;color:var(--cg-ink-2);max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          当前目录：/
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+          <button type="button" class="btn" onclick="closeShareBrowser()">关闭</button>
+          <button type="button" class="btn btn-primary" onclick="confirmBrowserSelection()">转存当前文件夹</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 结构与重命名透视独立弹窗 (AI Insight Modal) -->
+  <div class="modal-backdrop" id="modal-ai-insight">
+    <div class="modal-dialog" style="max-width: 660px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/></svg>
+          <span>AI 目录穿透与规范重命名透视</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeAiInsightModal()" aria-label="关闭">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-body" id="ai-insight-modal-body" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+        <div style="padding: 2.5rem 1rem; text-align: center; color: var(--cg-ink-3); font-size: 0.85rem;">
+          ◇ 正在深度下探目录树，分析正片分布与规范命名规则...
+        </div>
+      </div>
+
+      <div class="modal-footer" id="ai-insight-modal-footer">
+        <button type="button" class="btn" onclick="closeAiInsightModal()">关闭</button>
+        <button type="button" class="btn btn-primary" id="btn-ai-insight-apply" style="display: none;">⚡ 选用此直达链接并套用命名 ➔</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 全局 Toast 容器 -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="/static/js/app.js?v=9.9"></script>
+</body>
+</html>

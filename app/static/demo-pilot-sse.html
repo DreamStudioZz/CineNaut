@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto-Pilot Agent - 动态推理流 (SSE & ReAct 原型演示)</title>
+  <link rel="stylesheet" href="/static/css/codegraph.css?v=6.4">
+  <style>
+    :root {
+      --bg-page: #f5f4ef;
+      --card-bg: #ffffff;
+      --text-main: #1c1b18;
+      --text-sub: #5f5e5a;
+      --text-muted: #8d8b82;
+      --border-color: #e5e3dc;
+      --accent-blue: #1a73e8;
+      --accent-green: #137333;
+      --accent-amber: #b06000;
+      --font-mono: "SF Mono", "Cascadia Code", Consolas, Menlo, monospace;
+    }
+
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
+      padding: 2rem 1rem;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+
+    .demo-container {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .demo-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 0.82rem;
+    }
+
+    /* ============================================================
+       高级拟物工匠风：步进状态总线 (Process Bus)
+       ============================================================ */
+    .agent-pipeline-bus {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+      background: #eae8e1;
+      padding: 4px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .bus-step {
+      background: transparent;
+      padding: 0.6rem 0.5rem;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    .bus-step.active {
+      background: #ffffff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .bus-step.done {
+      background: rgba(255,255,255,0.6);
+    }
+
+    .bus-step-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .bus-step.active .bus-step-top {
+      color: var(--accent-blue);
+    }
+
+    .bus-step.done .bus-step-top {
+      color: var(--accent-green);
+    }
+
+    .bus-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .bus-step.active .bus-dot {
+      box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+      animation: pulse-ring 1.5s infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.4); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    .bus-step-sub {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ============================================================
+       高级 AI 推理抽屉 (Reasoning Console)
+       ============================================================ */
+    .agent-reasoning-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+
+    .reasoning-header {
+      padding: 0.7rem 1rem;
+      background: #faf9f5;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .reasoning-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .react-badge {
+      background: #111110;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+    }
+
+    .reasoning-status-text {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .reasoning-meta {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .reasoning-body {
+      padding: 0.85rem 1rem;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      max-height: 280px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      line-height: 1.5;
+    }
+
+    /* ReAct 节点：Thought -> Action -> Observation */
+    .react-node {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 6px 10px;
+      border-radius: 4px;
+      border-left: 3px solid var(--border-color);
+      background: #fafaf8;
+      animation: node-in 0.25s ease forwards;
+    }
+
+    @keyframes node-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .react-node.thought {
+      border-left-color: #6851ff;
+      background: #f7f6ff;
+    }
+
+    .react-node.action {
+      border-left-color: #1a73e8;
+      background: #f0f7ff;
+    }
+
+    .react-node.observation {
+      border-left-color: #137333;
+      background: #f0fdf4;
+    }
+
+    .react-node.self-healing {
+      border-left-color: #d9381e;
+      background: #fef2f2;
+    }
+
+    .node-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .node-header.thought-h { color: #6851ff; }
+    .node-header.action-h { color: #1a73e8; }
+    .node-header.observation-h { color: #137333; }
+    .node-header.healing-h { color: #d9381e; }
+
+    .node-content {
+      color: var(--text-main);
+      word-break: break-all;
+    }
+
+    .node-tool-call {
+      background: rgba(0,0,0,0.04);
+      padding: 3px 6px;
+      border-radius: 3px;
+      display: inline-block;
+      margin-top: 2px;
+      font-size: 0.72rem;
+    }
+
+    /* 决策完成收起状态 */
+    .agent-reasoning-card.collapsed .reasoning-body {
+      display: none;
+    }
+
+    /* ============================================================
+       最终高保真落地决策卡片 (Pilot Decision Card)
+       ============================================================ */
+    .final-decision-card {
+      background: var(--card-bg);
+      border: 1.5px solid #111110;
+      border-radius: 6px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+    }
+
+    .decision-row-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .decision-box {
+      background: #faf9f5;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 0.65rem 0.85rem;
+    }
+
+    .decision-box-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="demo-container">
+
+    <!-- 顶部演示控制栏 -->
+    <div class="demo-toolbar">
+      <div>
+        <strong>Auto-Pilot Agent 架构演进原型</strong>
+        <span style="color:var(--text-muted);margin-left:6px;">ReAct 思考范式 + SSE 流式推演</span>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="restartSimulation()" style="padding:0.35rem 0.8rem;font-size:0.75rem;">
+        ⚡ 重新模拟 SSE 真实推理
+      </button>
+    </div>
+
+    <!-- 1. 顶部拟物工匠状态总线 (Bus Steps) -->
+    <div class="agent-pipeline-bus">
+      <div class="bus-step" id="bus-step-1">
+        <div class="bus-step-top">
+          <span class="bus-dot"></span>
+          <span>1. 盘搜检索</span>
+        </div>
+        <div class="bus-step-sub" id="bus-sub-1">等待中...</div>
+      </div>
+      <div class="bus-step" id="bus-step-2">
+        <div class="bus-step-top">
+          <span class="bus-dot"></span>
+          <span>2. 质检决策</span>
+        </div>
+        <div class="bus-step-sub" id="bus-sub-2">等待中...</div>
+      </div>
+      <div class="bus-step" id="bus-step-3">
+        <div class="bus-step-top">
+          <span class="bus-dot"></span>
+          <span>3. 探针下探</span>
+        </div>
+        <div class="bus-step-sub" id="bus-sub-3">等待中...</div>
+      </div>
+      <div class="bus-step" id="bus-step-4">
+        <div class="bus-step-top">
+          <span class="bus-dot"></span>
+          <span>4. 命名就绪</span>
+        </div>
+        <div class="bus-step-sub" id="bus-sub-4">等待中...</div>
+      </div>
+    </div>
+
+    <!-- 2. ReAct 思考与推理流折叠卡 (Reasoning Drawer) -->
+    <div class="agent-reasoning-card" id="reasoning-card">
+      <div class="reasoning-header" onclick="toggleReasoning()">
+        <div class="reasoning-title-group">
+          <span class="react-badge">ReAct AGENT</span>
+          <span class="reasoning-status-text" id="reasoning-status">智能体正在推理决策...</span>
+        </div>
+        <div class="reasoning-meta" id="reasoning-meta">耗时 0.00s ▾</div>
+      </div>
+      <div class="reasoning-body" id="reasoning-stream">
+        <!-- 动态通过 SSE 流式推入节点 -->
+      </div>
+    </div>
+
+    <!-- 3. 最终落盘决策卡 (就绪后平滑展开) -->
+    <div class="final-decision-card" id="final-card" style="display: none;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+        <div>
+          <div style="font-size:1rem;font-weight:800;display:flex;align-items:center;gap:6px;">
+            <span>猫鼬 / The Tax Collector (2026)</span>
+            <span class="ai-tag ai-tag-best">置顶首推</span>
+          </div>
+          <div style="display:flex;gap:4px;margin-top:6px;">
+            <span class="ai-tag ai-tag-quality">4K超清</span>
+            <span class="ai-tag ai-tag-quality">杜比视界</span>
+            <span class="ai-tag ai-tag-quality">REMUX</span>
+            <span class="ai-tag ai-tag-default">★ 98分</span>
+          </div>
+        </div>
+        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent-green);font-weight:700;">✓ 决策就绪</span>
+      </div>
+
+      <div class="decision-row-grid">
+        <div class="decision-box">
+          <div class="decision-box-title">目录树穿透结构</div>
+          <div style="font-size:0.76rem;color:#333;line-height:1.4;">
+            已穿透 <strong>1 层</strong> 包装套娃，直达正片目录【M《猫-鼬》2026动作】(共 2 个视频)
+          </div>
+        </div>
+        <div class="decision-box">
+          <div class="decision-box-title">EMBY / PLEX 标准重命名</div>
+          <div style="font-family:var(--font-mono);font-size:0.75rem;color:#137333;font-weight:600;background:#e6f4ea;padding:3px 6px;border-radius:2px;">
+            猫鼬 (2026).mp4
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="decision-box-title">目标网盘保存路径</div>
+        <div style="font-family:var(--font-mono);font-size:0.76rem;background:#f0eee6;padding:4px 8px;border-radius:2px;">
+          /nas/movie/猫鼬 (2026)
+        </div>
+      </div>
+
+      <div style="display:flex;gap:0.75rem;margin-top:0.5rem;padding-top:0.75rem;border-top:1px dashed var(--border-color);">
+        <button type="button" class="pilot-btn-primary" style="flex:1.2;">
+          ⚡ 立即执行转存 (1-Click Run)
+        </button>
+        <button type="button" class="pilot-btn-secondary" style="flex:1;">
+          + 加入后台追更
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let timer = null;
+    let startTime = 0;
+
+    function toggleReasoning() {
+      document.getElementById('reasoning-card').classList.toggle('collapsed');
+    }
+
+    function addReActNode(type, title, content, toolCall = '') {
+      const stream = document.getElementById('reasoning-stream');
+      const node = document.createElement('div');
+      node.className = `react-node ${type}`;
+
+      const toolHtml = toolCall ? `<div class="node-tool-call">Tool: ${toolCall}</div>` : '';
+      node.innerHTML = `
+        <div class="node-header ${type}-h">
+          <span>${title}</span>
+          <span>${((Date.now() - startTime) / 1000).toFixed(2)}s</span>
+        </div>
+        <div class="node-content">${content}</div>
+        ${toolHtml}
+      `;
+      stream.appendChild(node);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function restartSimulation() {
+      if (timer) clearTimeout(timer);
+      startTime = Date.now();
+
+      const stream = document.getElementById('reasoning-stream');
+      stream.innerHTML = '';
+      document.getElementById('final-card').style.display = 'none';
+      document.getElementById('reasoning-card').classList.remove('collapsed');
+      document.getElementById('reasoning-status').innerText = '智能体正在推理决策...';
+
+      // 重置 bus
+      for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById(`bus-step-${i}`);
+        el.className = 'bus-step';
+        document.getElementById(`bus-sub-${i}`).innerText = '等待中...';
+      }
+
+      // Step 1: Thought & Action (Search)
+      document.getElementById('bus-step-1').className = 'bus-step active';
+      document.getElementById('bus-sub-1').innerText = '全网并发检索中...';
+
+      addReActNode('thought', 'Thought [思考]', '用户需要转存电影《猫鼬》(2026)。首先我需要调用盘搜工具获取全网夸克分享候选。');
+
+      setTimeout(() => {
+        addReActNode('action', 'Action [调用工具]', '调用夸克盘搜接口检索关键词: "猫鼬 2026"', 'pansou_search(query="猫鼬 2026", deep=false)');
+      }, 400);
+
+      setTimeout(() => {
+        document.getElementById('bus-step-1').className = 'bus-step done';
+        document.getElementById('bus-sub-1').innerText = '共 192 条候选';
+        document.getElementById('bus-step-2').className = 'bus-step active';
+        document.getElementById('bus-sub-2').innerText = '画质与特征评分...';
+
+        addReActNode('observation', 'Observation [工具返回]', '返回 192 条夸克分享候选。包含 12 条 4K、35 条 1080P，其余多为公众号引流或标清资源。');
+        addReActNode('thought', 'Thought [思考]', '根据画质与防引流规则，我过滤了 8 个包含解压密码的公众号链接，锁定第 1 顺位的 4K REMUX 杜比视界优质源。现在需要探查它的内部目录结构是否可用。');
+      }, 1200);
+
+      // Step 3: Self-healing & Tree Probe
+      setTimeout(() => {
+        document.getElementById('bus-step-2').className = 'bus-step done';
+        document.getElementById('bus-sub-2').innerText = '锁定 4K REMUX (98分)';
+        document.getElementById('bus-step-3').className = 'bus-step active';
+        document.getElementById('bus-sub-3').innerText = '探测目录树...';
+
+        addReActNode('action', 'Action [调用工具]', '深度下探首选分享目录树', 'inspect_share_tree(shareurl="https://pan.quark.cn/s/96a6...")');
+      }, 2100);
+
+      setTimeout(() => {
+        document.getElementById('bus-step-3').className = 'bus-step done';
+        document.getElementById('bus-sub-3').innerText = '穿透 1 层套娃';
+        document.getElementById('bus-step-4').className = 'bus-step active';
+        document.getElementById('bus-sub-4').innerText = '计算重命名规则...';
+
+        addReActNode('observation', 'Observation [工具返回]', '分享树探测成功: 发现 1 层嵌套包装【M《猫-鼬》2026动作】，底层包含 2 个视频文件 (共 18.5GB)，且成功屏蔽根目录 1 个密码引导文件。');
+        addReActNode('thought', 'Thought [思考]', '该资源正片完整无损，属于电影单片。我将为其套用 Emby 电影命名标准: "猫鼬 (2026).mp4"，并将落地路径规范化至 "/nas/movie/猫鼬 (2026)"。');
+      }, 3000);
+
+      // Step 4: Final Ready
+      setTimeout(() => {
+        document.getElementById('bus-step-4').className = 'bus-step done';
+        document.getElementById('bus-sub-4').innerText = 'Emby 规范已就绪';
+
+        const totalSec = ((Date.now() - startTime) / 1000).toFixed(2);
+        document.getElementById('reasoning-status').innerText = 'AI 思考完成，已生成最优落地方案';
+        document.getElementById('reasoning-meta').innerText = `耗时 ${totalSec}s (4 个推理闭环) ▾`;
+        document.getElementById('final-card').style.display = 'flex';
+
+        // 自动平滑折叠思考抽屉
+        setTimeout(() => {
+          document.getElementById('reasoning-card').classList.add('collapsed');
+        }, 1200);
+      }, 3800);
+    }
+
+    // 页面加载自动运行一次演示
+    window.addEventListener('DOMContentLoaded', restartSimulation);
+  </script>
+</body>
+</html>

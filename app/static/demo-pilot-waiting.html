@@ -1,0 +1,846 @@
+<title>智能托管等待态</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* ============================================================
+     CineNaut · Auto-Pilot 等待态方案对比
+     设计基线：米纸 #f7f6f2 / 墨线 #16150f / 单一强调绿 #1b7f43
+     排版：系统无衬线（正文）+ 等宽（数据与图纸标注）
+     ============================================================ */
+  :root {
+    --paper: #f7f6f2;
+    --paper-2: #f1efe8;
+    --paper-press: #e8e6dd;
+    --ink: #16150f;
+    --ink-2: #56544a;
+    --ink-3: #87847a;
+    --rule: #16150f;
+    --rule-soft: #d6d3c8;
+    --green: #1b7f43;
+    --gold: #c28800;
+    --red: #b91c1c;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --shadow: 6px 6px 0 rgba(22, 21, 15, 0.18);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 64px;
+  }
+
+  .page-head {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 22px 0 16px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+  .brand-mark {
+    width: 34px; height: 34px;
+    border: 1.5px solid var(--ink);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-weight: 800; font-size: 12px;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+
+  .brand-name { font-size: 1.02rem; font-weight: 800; letter-spacing: -0.02em; }
+  .brand-name span { color: var(--ink-3); font-weight: 600; }
+  .brand-sub { font-size: 0.76rem; color: var(--ink-2); margin-top: 2px; }
+
+  .head-note {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--ink-3);
+    text-align: right;
+    line-height: 1.6;
+    letter-spacing: 0.06em;
+  }
+  .head-note b { color: var(--ink); font-size: 0.9rem; }
+
+  .intro {
+    max-width: 980px;
+    margin: 18px auto 0;
+    font-size: 0.86rem;
+    color: var(--ink-2);
+    max-width: 68ch;
+  }
+  .intro strong { color: var(--ink); }
+
+  .switcher {
+    max-width: 980px;
+    margin: 18px auto 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sw-btn {
+    appearance: none;
+    border: 1px solid var(--rule-soft);
+    background: var(--paper);
+    color: var(--ink-2);
+    font-family: var(--sans);
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 8px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+  .sw-btn:hover { background: var(--paper-press); border-color: var(--ink-3); color: var(--ink); }
+  .sw-btn[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .sw-btn:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+  .sw-idx {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 800;
+    opacity: 0.6;
+  }
+  .sw-btn[aria-selected="true"] .sw-idx { opacity: 1; color: var(--gold); }
+
+  .stage {
+    max-width: 980px;
+    margin: 16px auto 0;
+    background: var(--paper-2);
+    border: 1px solid var(--rule-soft);
+    padding: clamp(12px, 2.4vw, 26px);
+    background-image:
+      linear-gradient(rgba(22, 21, 15, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(22, 21, 15, 0.035) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .stage-note {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+  }
+  #stage-name { font-weight: 700; color: var(--ink); letter-spacing: 0.02em; }
+  #stage-tag { color: var(--ink-3); }
+
+  .modal {
+    max-width: 720px;
+    margin: 0 auto;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  /* 模拟弹窗头部 */
+  .hero {
+    background: #16150f;
+    color: var(--paper);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--rule);
+  }
+  .hero::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(22,21,15,0) 40%, rgba(194,136,0,0.12) 100%);
+    pointer-events: none;
+  }
+  .poster {
+    width: 46px; height: 64px;
+    border: 1px solid rgba(247, 246, 242, 0.55);
+    background:
+      linear-gradient(135deg, rgba(194, 136, 0, 0.28), transparent 62%),
+      repeating-linear-gradient(45deg, #23211a 0 5px, #1a1812 5px 10px);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-size: 9px; font-weight: 800;
+    color: var(--gold); letter-spacing: 0.12em;
+    flex-shrink: 0;
+  }
+  .hero-info { min-width: 0; position: relative; z-index: 1; }
+  .hero-title { font-size: 1.06rem; font-weight: 800; letter-spacing: -0.01em; }
+  .hero-meta { font-size: 0.72rem; color: #c9c5b8; margin-top: 2px; font-family: var(--mono); }
+  .hero-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+  .hero-tags span {
+    font-family: var(--mono); font-size: 0.62rem; font-weight: 700;
+    border: 1px solid rgba(247, 246, 242, 0.35);
+    padding: 1px 5px; letter-spacing: 0.06em; color: #e6e2d6;
+  }
+  .hero-badge {
+    margin-left: auto; align-self: flex-start;
+    font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.14em;
+    color: var(--gold); border: 1px solid rgba(194,136,0,0.55);
+    padding: 2px 5px; position: relative; z-index: 1; flex-shrink: 0;
+  }
+
+  .mode-tabs {
+    display: flex; border-bottom: 1px solid var(--rule);
+    background: var(--paper-2);
+  }
+  .mode-tab {
+    flex: 1; text-align: center; padding: 9px 8px;
+    font-size: 0.74rem; font-weight: 700; color: var(--ink-3);
+    font-family: var(--sans);
+  }
+  .mode-tab.active {
+    background: var(--paper); color: var(--ink);
+    box-shadow: inset 0 -2px 0 var(--ink);
+  }
+
+  .panel { padding: clamp(12px, 2.2vw, 20px); background: var(--paper); }
+
+  /* ============================================================
+     方案 A · 蓝图推演
+     ============================================================ */
+  .bp-card {
+    position: relative;
+    border: 1px solid var(--ink);
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(rgba(22, 21, 15, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(22, 21, 15, 0.05) 1px, transparent 1px);
+    background-size: 16px 16px;
+    padding: 14px 16px 12px;
+  }
+  .bp-corner { position: absolute; width: 7px; height: 7px; border: 1px solid var(--ink); background: var(--paper); }
+  .bp-corner.tl { top: -4px; left: -4px; }
+  .bp-corner.tr { top: -4px; right: -4px; }
+  .bp-corner.bl { bottom: -4px; left: -4px; }
+  .bp-corner.br { bottom: -4px; right: -4px; }
+
+  .bp-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; font-family: var(--mono); font-size: 0.66rem;
+    letter-spacing: 0.08em; color: var(--ink-3);
+    padding-bottom: 8px; border-bottom: 1px dashed var(--ink-3);
+  }
+  .bp-stamp { color: var(--ink); font-weight: 700; }
+  .bp-clock b { color: var(--green); font-size: 0.86rem; }
+
+  .bp-title { font-size: 0.98rem; font-weight: 800; margin-top: 10px; letter-spacing: -0.01em; }
+  .bp-sub { font-family: var(--mono); font-size: 0.68rem; color: var(--ink-2); margin-top: 3px; overflow-wrap: anywhere; }
+
+  .bp-steps { margin-top: 10px; border-top: 1px solid var(--rule-soft); }
+  .bp-step {
+    display: grid; grid-template-columns: 28px 1fr auto;
+    align-items: center; gap: 8px;
+    padding: 7px 6px; border-bottom: 1px solid var(--rule-soft);
+    font-family: var(--mono); font-size: 0.7rem;
+  }
+  .bp-num { color: var(--ink-3); font-weight: 700; }
+  .bp-name { color: var(--ink); font-weight: 700; }
+  .bp-val { color: var(--ink-2); white-space: nowrap; }
+  .bp-step.done .bp-num, .bp-step.done .bp-val { color: var(--green); }
+  .bp-step.active { background: var(--paper-2); box-shadow: inset 2px 0 0 var(--green); }
+  .bp-step.active .bp-num { color: var(--green); }
+  .bp-step.pending { opacity: 0.55; }
+  .bp-dots::after { content: ""; animation: dots 1.2s steps(4) infinite; }
+  @keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+
+  .bp-track { position: relative; height: 46px; margin-top: 12px; }
+  .bp-track::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 24px;
+    border-top: 1px dashed var(--ink-3);
+  }
+  .bp-track-label {
+    position: absolute; top: 0; font-family: var(--mono);
+    font-size: 0.6rem; color: var(--ink-3); letter-spacing: 0.06em;
+  }
+  .bp-track-label.l { left: 0; }
+  .bp-track-label.m { left: 50%; transform: translateX(-50%); }
+  .bp-track-label.r { right: 0; }
+  .bp-probe {
+    position: absolute; top: 19px; left: 0;
+    width: 10px; height: 10px; border: 2px solid var(--green);
+    background: var(--paper); border-radius: 50%;
+  }
+  .v-blueprint.is-live .bp-probe { animation: bpProbe 2.8s ease-in-out infinite; }
+  @keyframes bpProbe { 0% { left: 0; } 50% { left: calc(100% - 10px); } 100% { left: 0; } }
+
+  .bp-skel { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .bp-bar {
+    display: block; height: 7px;
+    background: repeating-linear-gradient(90deg, var(--rule-soft) 0 5px, transparent 5px 9px);
+  }
+  .v-blueprint.is-live .bp-bar { animation: bpPulse 1.8s ease-in-out infinite; }
+  .v-blueprint.is-live .bp-bar:nth-child(2) { animation-delay: 0.3s; }
+  @keyframes bpPulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+  .bp-foot {
+    display: flex; justify-content: space-between; margin-top: 10px;
+    font-family: var(--mono); font-size: 0.6rem; color: var(--ink-3);
+    letter-spacing: 0.1em;
+  }
+
+  /* ============================================================
+     方案 B · 精工刻度
+     ============================================================ */
+  .rl-head {
+    display: flex; justify-content: space-between; gap: 10px;
+    font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.09em;
+    color: var(--ink-3); padding-bottom: 8px; border-bottom: 1px solid var(--ink);
+  }
+  .rl-head span:last-child { color: var(--green); font-weight: 700; }
+  .rl-title { font-size: 1.02rem; font-weight: 800; margin-top: 14px; letter-spacing: -0.01em; }
+  .rl-sub { font-family: var(--mono); font-size: 0.68rem; color: var(--ink-2); margin-top: 3px; overflow-wrap: anywhere; }
+
+  .rl-scale { position: relative; height: 34px; margin-top: 22px; border-bottom: 1px solid var(--ink); }
+  .rl-ticks {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 8px;
+    background-image: repeating-linear-gradient(90deg, var(--ink-3) 0 1px, transparent 1px 10px);
+  }
+  .rl-fill {
+    position: absolute; left: 0; top: 0; height: 2px; background: var(--green);
+    width: 62%;
+  }
+  .v-ruler.is-live .rl-fill { animation: rlFill 2.4s ease-in-out infinite; }
+  @keyframes rlFill { 0% { width: 12%; } 70% { width: 62%; } 100% { width: 62%; } }
+  .rl-marker {
+    position: absolute; top: -6px; width: 1px; height: 26px;
+    background: var(--ink); left: 62%;
+  }
+  .rl-marker span {
+    position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    font-family: var(--mono); font-size: 0.6rem; font-weight: 700;
+    background: var(--ink); color: var(--paper); padding: 1px 4px;
+    white-space: nowrap;
+  }
+  .rl-labels {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    font-family: var(--mono); font-size: 0.6rem; color: var(--ink-3);
+    letter-spacing: 0.08em; margin-top: 8px; text-transform: uppercase;
+  }
+  .rl-labels span:nth-child(2), .rl-labels span:nth-child(3) { text-align: center; }
+  .rl-labels span:last-child { text-align: right; }
+
+  .rl-skel { display: flex; flex-direction: column; gap: 7px; margin-top: 18px; }
+  .rl-skel span {
+    display: block; height: 7px;
+    background: var(--rule-soft);
+  }
+  .v-ruler.is-live .rl-skel span { animation: rlPulse 1.8s ease-in-out infinite; }
+  .v-ruler.is-live .rl-skel span:nth-child(2) { animation-delay: 0.25s; }
+  @keyframes rlPulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+
+  .rl-foot {
+    display: flex; justify-content: space-between; gap: 10px;
+    margin-top: 16px; padding-top: 8px; border-top: 1px solid var(--rule-soft);
+    font-family: var(--mono); font-size: 0.62rem; color: var(--ink-3);
+    letter-spacing: 0.08em;
+  }
+
+  /* ============================================================
+     方案 C · 打字机手账
+     ============================================================ */
+  .tw-wrap { position: relative; border: 1px solid var(--ink); padding: 14px 16px 12px; background: var(--paper); }
+  .tw-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; font-family: var(--mono); font-size: 0.64rem;
+    letter-spacing: 0.1em; color: var(--ink-3);
+    padding-bottom: 8px; border-bottom: 1px solid var(--ink);
+  }
+  .tw-stamp {
+    border: 2px solid var(--green); color: var(--green);
+    font-weight: 800; font-size: 0.6rem; letter-spacing: 0.14em;
+    padding: 2px 6px; transform: rotate(-5deg);
+    opacity: 0.85; flex-shrink: 0;
+  }
+  .tw-sheet { margin-top: 6px; font-family: var(--mono); font-size: 0.72rem; }
+  .tw-line {
+    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+    padding: 7px 0; border-bottom: 1px dashed var(--rule-soft);
+    color: var(--ink-2);
+  }
+  .tw-prompt { color: var(--ink-3); flex-shrink: 0; }
+  .tw-line.done .tw-text { color: var(--ink); }
+  .tw-ok { margin-left: auto; color: var(--green); font-weight: 700; white-space: nowrap; }
+  .tw-line.active { color: var(--ink); background: var(--paper-2); }
+  .tw-line.active .tw-text { font-weight: 700; }
+  .tw-cursor {
+    display: inline-block; width: 7px; height: 12px;
+    background: var(--ink); margin-left: 2px; vertical-align: -1px;
+  }
+  .v-type.is-live .tw-cursor { animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  .tw-line.pending { opacity: 0.45; }
+  .tw-dim { margin-left: auto; color: var(--ink-3); font-size: 0.64rem; letter-spacing: 0.06em; }
+  .tw-foot {
+    display: flex; justify-content: space-between; gap: 10px;
+    margin-top: 10px; font-family: var(--mono); font-size: 0.62rem;
+    color: var(--ink-3); letter-spacing: 0.08em;
+  }
+
+  /* ============================================================
+     方案 D · 胶片倒计时
+     ============================================================ */
+  .fl-wrap { border: 1px solid var(--ink); padding: 10px; background: var(--paper); }
+  .fl-strip { display: flex; background: var(--ink); border: 1px solid var(--ink); }
+  .fl-perf {
+    width: 18px; flex-shrink: 0;
+    background-color: var(--ink);
+    background-image: radial-gradient(circle at 50% 10px, var(--paper) 3.1px, transparent 3.5px);
+    background-size: 18px 20px;
+    background-repeat: repeat-y;
+  }
+  .fl-frame {
+    flex: 1; min-width: 0; position: relative;
+    margin: 8px 0; min-height: 150px;
+    background-color: var(--paper-2);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(22,21,15,0.025) 0 1px, transparent 1px 3px);
+    display: grid; place-items: center;
+    overflow: hidden;
+  }
+  .fl-cross { position: absolute; background: var(--rule-soft); }
+  .fl-cross.h { left: 0; right: 0; top: 50%; height: 1px; }
+  .fl-cross.v { top: 0; bottom: 0; left: 50%; width: 1px; }
+  .fl-ring { position: relative; width: 92px; height: 92px; display: grid; place-items: center; }
+  .fl-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+  .fl-ring circle { fill: none; stroke-width: 1.5; }
+  .fl-ring .fl-base { stroke: var(--ink-3); opacity: 0.5; }
+  .fl-ring .fl-progress {
+    stroke: var(--gold); stroke-width: 2.5;
+    stroke-dasharray: 251; stroke-dashoffset: 160;
+    stroke-linecap: butt;
+  }
+  .v-film.is-live .fl-progress { animation: flRing 2.6s linear infinite; }
+  @keyframes flRing { 0% { stroke-dashoffset: 251; } 100% { stroke-dashoffset: 0; } }
+  .fl-num {
+    font-family: var(--mono); font-size: 2.1rem; font-weight: 800;
+    color: var(--ink); line-height: 1;
+  }
+  .fl-label {
+    position: absolute; right: 8px; bottom: 6px;
+    font-family: var(--mono); font-size: 0.58rem; color: var(--ink-3);
+    letter-spacing: 0.1em;
+  }
+  .fl-title { font-size: 0.98rem; font-weight: 800; margin-top: 12px; letter-spacing: -0.01em; }
+  .fl-sub { font-family: var(--mono); font-size: 0.68rem; color: var(--ink-2); margin-top: 3px; overflow-wrap: anywhere; }
+  .fl-foot {
+    display: flex; justify-content: space-between; gap: 10px;
+    margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--rule-soft);
+    font-family: var(--mono); font-size: 0.62rem; color: var(--ink-3);
+    letter-spacing: 0.08em;
+  }
+
+  /* ============================================================
+     选型对比
+     ============================================================ */
+  .compare { max-width: 980px; margin: 40px auto 0; }
+  .compare-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--rule);
+    padding-bottom: 10px;
+  }
+  .compare-head h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
+  .compare-head p { margin: 0; font-size: 0.76rem; color: var(--ink-2); max-width: 52ch; }
+
+  .compare-grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px; margin-top: 16px;
+  }
+  .cmp-card {
+    border: 1px solid var(--rule-soft);
+    background: var(--paper);
+    padding: 14px 16px;
+    min-width: 0;
+  }
+  .cmp-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cmp-idx {
+    font-family: var(--mono); font-size: 0.66rem; font-weight: 800;
+    border: 1px solid var(--ink); padding: 0 5px; line-height: 1.5;
+  }
+  .cmp-top h3 { margin: 0; font-size: 0.88rem; letter-spacing: -0.01em; }
+  .cmp-tag {
+    margin-left: auto; font-family: var(--mono); font-size: 0.6rem;
+    color: var(--green); border: 1px solid var(--green);
+    padding: 1px 5px; letter-spacing: 0.06em; white-space: nowrap;
+  }
+  .cmp-desc { margin: 8px 0 10px; font-size: 0.78rem; color: var(--ink-2); }
+  .cmp-list { display: flex; flex-direction: column; gap: 5px; }
+  .cmp-row { display: grid; grid-template-columns: 38px 1fr; gap: 8px; font-size: 0.73rem; }
+  .cmp-row dt { font-family: var(--mono); color: var(--ink-3); font-size: 0.64rem; letter-spacing: 0.06em; padding-top: 1px; }
+  .cmp-row dd { margin: 0; color: var(--ink-2); min-width: 0; }
+
+  .callout {
+    max-width: 980px; margin: 18px auto 0;
+    border-left: 3px solid var(--green);
+    background: var(--paper-2);
+    padding: 12px 14px;
+    font-size: 0.8rem; color: var(--ink-2);
+  }
+  .callout strong { color: var(--ink); }
+
+  .foot-note {
+    max-width: 980px; margin: 26px auto 0;
+    font-family: var(--mono); font-size: 0.64rem; color: var(--ink-3);
+    letter-spacing: 0.06em;
+    border-top: 1px solid var(--rule-soft); padding-top: 10px;
+  }
+
+  /* ============================================================
+     响应式
+     ============================================================ */
+  @media (max-width: 640px) {
+    .page-head { padding-top: 16px; }
+    .head-note { text-align: left; }
+    .switcher { gap: 6px; }
+    .sw-btn { font-size: 0.74rem; padding: 7px 9px; }
+    .stage-note { flex-direction: column; gap: 2px; }
+    .hero { padding: 12px; gap: 10px; }
+    .hero-title { font-size: 0.96rem; }
+    .hero-badge { display: none; }
+    .poster { width: 38px; height: 54px; }
+    .mode-tab { font-size: 0.68rem; padding: 8px 4px; }
+    .bp-step { grid-template-columns: 24px 1fr auto; gap: 6px; font-size: 0.66rem; }
+    .bp-val { font-size: 0.62rem; }
+    .rl-labels { font-size: 0.56rem; }
+    .tw-line { font-size: 0.68rem; }
+    .tw-ok { margin-left: 0; width: 100%; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .fl-frame { min-height: 126px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+</style>
+
+<header class="page-head">
+  <div class="brand">
+    <div class="brand-mark">CN</div>
+    <div>
+      <div class="brand-name">CineNaut <span>/ 智能托管等待态</span></div>
+      <div class="brand-sub">四种与纸质工匠风格一致的加载方案 · 可切换预览</div>
+    </div>
+  </div>
+  <div class="head-note">方案对比<br><b>4</b> VARIANTS</div>
+</header>
+
+<p class="intro">
+  当前实装是<strong>深色磨砂玻璃 + 液态极光</strong>，放在米纸色的转存弹窗里会跳出来。
+  下面四套都回到项目原有的<strong>米纸 / 墨线 / 等宽标注</strong>体系，只保留一个强调色（绿），
+  区别在于「图纸感、刻度感、日志感、胶片感」四种叙事。
+</p>
+
+<nav class="switcher" role="tablist" aria-label="等待态方案">
+  <button class="sw-btn" role="tab" data-target="blueprint" aria-selected="true">
+    <span class="sw-idx">A</span> 蓝图推演
+  </button>
+  <button class="sw-btn" role="tab" data-target="ruler" aria-selected="false" tabindex="-1">
+    <span class="sw-idx">B</span> 精工刻度
+  </button>
+  <button class="sw-btn" role="tab" data-target="type" aria-selected="false" tabindex="-1">
+    <span class="sw-idx">C</span> 打字机手账
+  </button>
+  <button class="sw-btn" role="tab" data-target="film" aria-selected="false" tabindex="-1">
+    <span class="sw-idx">D</span> 胶片倒计时
+  </button>
+</nav>
+
+<section class="stage" aria-live="polite">
+  <div class="stage-note">
+    <span id="stage-name">方案 A · 蓝图推演</span>
+    <span id="stage-tag">最贴合 codegraph 身份</span>
+  </div>
+
+  <div class="modal">
+    <div class="hero">
+      <div class="poster">4K</div>
+      <div class="hero-info">
+        <div class="hero-title">星际穿越</div>
+        <div class="hero-meta">2014 · 科幻 / 剧情 · ★ 9.4</div>
+        <div class="hero-tags"><span>UHD</span><span>HDR</span><span>REMUX</span></div>
+      </div>
+      <div class="hero-badge">TMDB</div>
+    </div>
+
+    <div class="mode-tabs">
+      <div class="mode-tab active">智能托管 (Auto-Pilot)</div>
+      <div class="mode-tab">专家手动微调</div>
+    </div>
+
+    <div class="panel">
+
+      <!-- A · 蓝图推演 -->
+      <div class="variant v-blueprint is-live" data-variant="blueprint">
+        <div class="bp-card">
+          <span class="bp-corner tl"></span><span class="bp-corner tr"></span>
+          <span class="bp-corner bl"></span><span class="bp-corner br"></span>
+
+          <div class="bp-head">
+            <span class="bp-stamp">AI BLUEPRINT · REV.01</span>
+            <span class="bp-clock">T+<b>07</b>s</span>
+          </div>
+
+          <div class="bp-title">正在推演最优转存方案</div>
+          <div class="bp-sub">《星际穿越》2014 · 4K HDR · /nas/movie/星际穿越 (2014)</div>
+
+          <div class="bp-steps">
+            <div class="bp-step done"><span class="bp-num">01</span><span class="bp-name">全网检索</span><span class="bp-val">53 条候选</span></div>
+            <div class="bp-step done"><span class="bp-num">02</span><span class="bp-name">画质评分</span><span class="bp-val">98 分</span></div>
+            <div class="bp-step active"><span class="bp-num">03</span><span class="bp-name">目录穿透</span><span class="bp-val">探测中<span class="bp-dots"></span></span></div>
+            <div class="bp-step pending"><span class="bp-num">04</span><span class="bp-name">命名落盘</span><span class="bp-val">等待</span></div>
+          </div>
+
+          <div class="bp-track">
+            <span class="bp-track-label l">根目录</span>
+            <span class="bp-track-label m">S01</span>
+            <span class="bp-track-label r">正片</span>
+            <span class="bp-probe"></span>
+          </div>
+
+          <div class="bp-skel">
+            <span class="bp-bar" style="width:68%"></span>
+            <span class="bp-bar" style="width:42%"></span>
+          </div>
+
+          <div class="bp-foot"><span>DRAFTING</span><span>PROBE 03 / 04</span></div>
+        </div>
+      </div>
+
+      <!-- B · 精工刻度 -->
+      <div class="variant v-ruler" data-variant="ruler" hidden>
+        <div class="rl-head">
+          <span>AUTO-PILOT / PRECISION PASS</span>
+          <span>T+07.4s</span>
+        </div>
+        <div class="rl-title">正在校验正片目录</div>
+        <div class="rl-sub">《星际穿越》2014 · 4K HDR · 已锁定 53 条候选</div>
+
+        <div class="rl-scale">
+          <div class="rl-fill"></div>
+          <div class="rl-ticks"></div>
+          <div class="rl-marker"><span>62%</span></div>
+        </div>
+        <div class="rl-labels"><span>检索</span><span>评分</span><span>穿透</span><span>落盘</span></div>
+
+        <div class="rl-skel">
+          <span style="width:54%"></span>
+          <span style="width:30%"></span>
+        </div>
+
+        <div class="rl-foot"><span>STEP 03 / 04</span><span>目录树校验中</span></div>
+      </div>
+
+      <!-- C · 打字机手账 -->
+      <div class="variant v-type" data-variant="type" hidden>
+        <div class="tw-wrap">
+          <div class="tw-head">
+            <span>EXECUTION LOG</span>
+            <span class="tw-stamp">RUNNING</span>
+          </div>
+
+          <div class="tw-sheet">
+            <div class="tw-line done">
+              <span class="tw-prompt">›</span><span class="tw-text">检索全网夸克分享源</span>
+              <span class="tw-ok">✓ 53 条 · 6.8s</span>
+            </div>
+            <div class="tw-line done">
+              <span class="tw-prompt">›</span><span class="tw-text">启发式画质评分</span>
+              <span class="tw-ok">✓ 4K HDR · 98 分</span>
+            </div>
+            <div class="tw-line active">
+              <span class="tw-prompt">›</span><span class="tw-text">并发探查目录树</span>
+              <span class="tw-cursor"></span>
+            </div>
+            <div class="tw-line pending">
+              <span class="tw-prompt">›</span><span class="tw-text">生成 Emby 规范命名</span>
+              <span class="tw-dim">waiting</span>
+            </div>
+          </div>
+
+          <div class="tw-foot"><span>03 / 04</span><span>elapsed 07.4s</span></div>
+        </div>
+      </div>
+
+      <!-- D · 胶片倒计时 -->
+      <div class="variant v-film" data-variant="film" hidden>
+        <div class="fl-wrap">
+          <div class="fl-strip">
+            <div class="fl-perf"></div>
+            <div class="fl-frame">
+              <div class="fl-cross h"></div>
+              <div class="fl-cross v"></div>
+              <div class="fl-ring">
+                <svg viewBox="0 0 92 92" aria-hidden="true">
+                  <circle class="fl-base" cx="46" cy="46" r="40"></circle>
+                  <circle class="fl-progress" cx="46" cy="46" r="40"></circle>
+                </svg>
+                <span class="fl-num">3</span>
+              </div>
+              <span class="fl-label">FRAME 03 / 04</span>
+            </div>
+            <div class="fl-perf"></div>
+          </div>
+
+          <div class="fl-title">正在定位正片目录</div>
+          <div class="fl-sub">《星际穿越》2014 · 4K HDR · 已通过画质评分</div>
+          <div class="fl-foot"><span>REEL 01</span><span>PROBE 03 / 04</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="compare">
+  <div class="compare-head">
+    <h2>怎么选</h2>
+    <p>四套都只用现有 token 和 CSS，不改数据结构；选定后可以直接替换当前 <code>pilot-skeleton-card</code>。</p>
+  </div>
+
+  <div class="compare-grid">
+    <article class="cmp-card">
+      <div class="cmp-top">
+        <span class="cmp-idx">A</span>
+        <h3>蓝图推演</h3>
+        <span class="cmp-tag">最稳</span>
+      </div>
+      <p class="cmp-desc">把等待过程画成一张正在绘制的 CAD 图纸，步骤、路径、探针都在同一张图上。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>气质</dt><dd>工程、精确、可解释</dd></div>
+        <div class="cmp-row"><dt>优点</dt><dd>与 codegraph 身份最一致，信息密度高，用户知道 AI 在做什么</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>网格和虚线较多，弹窗小时会略密</dd></div>
+      </div>
+    </article>
+
+    <article class="cmp-card">
+      <div class="cmp-top">
+        <span class="cmp-idx">B</span>
+        <h3>精工刻度</h3>
+        <span class="cmp-tag">最安静</span>
+      </div>
+      <p class="cmp-desc">用一把精密直尺表达进度，只保留刻度、百分比和一条绿线。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>气质</dt><dd>克制、高级、留白</dd></div>
+        <div class="cmp-row"><dt>优点</dt><dd>视觉噪音最低，和设置页的直尺轨道同源，加载快时也不突兀</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>过程信息少，用户不知道具体卡在哪一步</dd></div>
+      </div>
+    </article>
+
+    <article class="cmp-card">
+      <div class="cmp-top">
+        <span class="cmp-idx">C</span>
+        <h3>打字机手账</h3>
+        <span class="cmp-tag">最透明</span>
+      </div>
+      <p class="cmp-desc">把 SSE 的 Thought / Action / Observation 直接落成一行行执行日志。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>气质</dt><dd>手账、终端、真实</dd></div>
+        <div class="cmp-row"><dt>优点</dt><dd>信息最透明，等待 20 秒时用户能看到每一步在推进</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>等宽字较多，长片名需要换行处理</dd></div>
+      </div>
+    </article>
+
+    <article class="cmp-card">
+      <div class="cmp-top">
+        <span class="cmp-idx">D</span>
+        <h3>胶片倒计时</h3>
+        <span class="cmp-tag">最有辨识度</span>
+      </div>
+      <p class="cmp-desc">借用电影胶片的倒计时片头，把「正在定位正片」变成一次放映前的等待。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>气质</dt><dd>电影、仪式感、轻松</dd></div>
+        <div class="cmp-row"><dt>优点</dt><dd>和 CineNaut 的影视主题强绑定，记忆点最强</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>最抢戏，频繁转存时可能显得慢；适合作为可选皮肤</dd></div>
+      </div>
+    </article>
+  </div>
+
+  <div class="callout">
+    <strong>我的建议：</strong>默认用 <strong>A 蓝图推演</strong>，信息量和品牌一致性最好；
+    如果担心 20 秒等待时用户焦虑，切到 <strong>C 打字机手账</strong>，把 SSE 节点直接摊开。
+    B 适合「加载很快、只想安静等一下」的场景，D 建议留作彩蛋或设置项。
+  </div>
+
+  <div class="foot-note">
+    CINENAUT / PILOT WAITING STATES · 米纸 #f7f6f2 · 墨线 #16150f · 强调绿 #1b7f43
+  </div>
+</section>
+
+<script>
+  (function () {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.sw-btn'));
+    var variants = Array.prototype.slice.call(document.querySelectorAll('.variant'));
+    var nameEl = document.getElementById('stage-name');
+    var tagEl = document.getElementById('stage-tag');
+
+    var meta = {
+      blueprint: { name: '方案 A · 蓝图推演', tag: '最贴合 codegraph 身份' },
+      ruler: { name: '方案 B · 精工刻度', tag: '最安静，信息最少' },
+      type: { name: '方案 C · 打字机手账', tag: '最透明，直接摊开执行日志' },
+      film: { name: '方案 D · 胶片倒计时', tag: '最有影视辨识度' }
+    };
+
+    function activate(key) {
+      variants.forEach(function (v) {
+        v.hidden = v.getAttribute('data-variant') !== key;
+      });
+      tabs.forEach(function (t) {
+        var on = t.getAttribute('data-target') === key;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
+      });
+      var m = meta[key];
+      if (m) {
+        nameEl.textContent = m.name;
+        tagEl.textContent = m.tag;
+      }
+      var v = variants.filter(function (x) { return x.getAttribute('data-variant') === key; })[0];
+      if (v) {
+        v.classList.remove('is-live');
+        void v.offsetWidth;
+        v.classList.add('is-live');
+      }
+    }
+
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () {
+        activate(t.getAttribute('data-target'));
+      });
+      t.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+        var i = tabs.indexOf(t);
+        var n = (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[n].focus();
+        activate(tabs[n].getAttribute('data-target'));
+      });
+    });
+
+    activate('blueprint');
+  })();
+</script>

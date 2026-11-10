@@ -1,0 +1,821 @@
+<title>手动结果列表方案</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* ============================================================
+     CineNaut · 专家手动微调 · 结果列表方案
+     基线：米纸 #f7f6f2 / 墨线 #16150f / 强调绿 #1b7f43
+     ============================================================ */
+  :root {
+    --paper: #f7f6f2;
+    --paper-2: #f1efe8;
+    --paper-press: #e8e6dd;
+    --ink: #16150f;
+    --ink-2: #56544a;
+    --ink-3: #87847a;
+    --rule: #16150f;
+    --rule-soft: #d6d3c8;
+    --green: #1b7f43;
+    --gold: #c28800;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 64px;
+  }
+
+  .page-head {
+    max-width: 1000px; margin: 0 auto;
+    padding: 22px 0 16px;
+    border-bottom: 1px solid var(--rule);
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .brand-mark {
+    width: 34px; height: 34px; border: 1.5px solid var(--ink);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-weight: 800; font-size: 12px;
+    letter-spacing: 0.04em; flex-shrink: 0;
+  }
+  .brand-name { font-size: 1.02rem; font-weight: 800; letter-spacing: -0.02em; }
+  .brand-name span { color: var(--ink-3); font-weight: 600; }
+  .brand-sub { font-size: 0.76rem; color: var(--ink-2); margin-top: 2px; }
+  .head-note {
+    font-family: var(--mono); font-size: 0.68rem; color: var(--ink-3);
+    text-align: right; line-height: 1.6; letter-spacing: 0.06em;
+  }
+  .head-note b { color: var(--ink); font-size: 0.9rem; }
+
+  .intro {
+    max-width: 1000px; margin: 18px auto 0;
+    font-size: 0.86rem; color: var(--ink-2); max-width: 74ch;
+  }
+  .intro strong { color: var(--ink); }
+  .intro code {
+    font-family: var(--mono); font-size: 0.78em;
+    background: var(--paper-2); border: 1px solid var(--rule-soft);
+    padding: 0 3px;
+  }
+
+  .switcher {
+    max-width: 1000px; margin: 18px auto 0;
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .sw-btn {
+    appearance: none; border: 1px solid var(--rule-soft);
+    background: var(--paper); color: var(--ink-2);
+    font-family: var(--sans); font-size: 0.8rem; font-weight: 700;
+    padding: 8px 12px; display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+  .sw-btn:hover { background: var(--paper-press); border-color: var(--ink-3); color: var(--ink); }
+  .sw-btn[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .sw-btn:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  .sw-idx { font-family: var(--mono); font-size: 0.68rem; font-weight: 800; opacity: 0.6; }
+  .sw-btn[aria-selected="true"] .sw-idx { opacity: 1; color: var(--gold); }
+
+  .stage {
+    max-width: 1000px; margin: 16px auto 0;
+    background: var(--paper-2);
+    border: 1px solid var(--rule-soft);
+    padding: clamp(14px, 2.4vw, 28px);
+    background-image:
+      linear-gradient(rgba(22, 21, 15, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(22, 21, 15, 0.035) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .stage-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
+    font-family: var(--mono); font-size: 0.72rem;
+  }
+  #stage-name { font-weight: 700; color: var(--ink); letter-spacing: 0.02em; }
+  #stage-tag { color: var(--ink-3); }
+
+  .stage-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: clamp(20px, 4vw, 36px);
+    align-items: start;
+  }
+
+  /* ============================================================
+     模拟弹窗
+     ============================================================ */
+  .modal-mock {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    box-shadow: 6px 6px 0 rgba(22, 21, 15, 0.18);
+    display: flex; flex-direction: column;
+    height: 600px;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .mm-head {
+    padding: 11px 15px;
+    border-bottom: 1px solid var(--rule);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; flex-shrink: 0;
+  }
+  .mm-title { font-size: 0.86rem; font-weight: 800; letter-spacing: -0.01em; }
+  .mm-sub {
+    font-family: var(--mono); font-size: 0.62rem;
+    color: var(--ink-3); letter-spacing: 0.06em;
+  }
+  .mm-body {
+    padding: 12px 15px 16px;
+    display: flex; flex-direction: column; gap: 11px;
+    overflow-y: auto;
+    flex: 1; min-height: 0;
+  }
+  .mm-foot {
+    padding: 9px 15px;
+    border-top: 1px solid var(--rule);
+    background: var(--paper-2);
+    display: flex; align-items: center; justify-content: flex-end; gap: 7px;
+    flex-shrink: 0;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field-label {
+    font-size: 0.7rem; font-weight: 700; color: var(--ink);
+  }
+  .field-label-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+  }
+  .field-count {
+    font-family: var(--mono); font-size: 0.6rem;
+    color: var(--ink-3); letter-spacing: 0.06em;
+  }
+  .input-mock {
+    height: 32px; border: 1px solid var(--rule);
+    background: var(--paper-2);
+    display: flex; align-items: center;
+    padding: 0 9px;
+    font-size: 0.72rem; color: var(--ink-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .search-line { display: flex; gap: 6px; min-width: 0; }
+  .search-line .input-mock { flex: 1; }
+  .btn-mock {
+    height: 32px; padding: 0 11px;
+    border: 1px solid var(--ink);
+    background: var(--paper); color: var(--ink);
+    font-size: 0.7rem; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .btn-mock.dark { background: var(--ink); color: var(--paper); }
+
+  /* ============================================================
+     结果列表
+     ============================================================ */
+  .results {
+    border: 1px solid var(--rule-soft);
+    background: var(--paper-2);
+    min-width: 0;
+  }
+  .res-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; padding: 6px 9px;
+    border-bottom: 1px solid var(--rule-soft);
+    font-family: var(--mono); font-size: 0.58rem;
+    color: var(--ink-3); letter-spacing: 0.04em;
+    background: var(--paper);
+  }
+  .res-scroll { max-height: 240px; overflow-y: auto; overscroll-behavior: contain; }
+
+  .res-item {
+    padding: 7px 9px;
+    border-bottom: 1px solid var(--rule-soft);
+    background: var(--paper-2);
+  }
+  .res-item:last-child { border-bottom: none; }
+  .res-item.selected {
+    background: #161614;
+    color: #fff;
+    border-left: 3px solid #fff;
+  }
+  .res-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 3px; }
+  .tag {
+    font-family: var(--mono); font-size: 0.54rem;
+    border: 1px solid var(--rule-soft);
+    padding: 0 4px; line-height: 1.5;
+    color: var(--ink-2); background: var(--paper);
+  }
+  .tag.best { color: var(--green); border-color: var(--green); font-weight: 700; }
+  .tag.q { color: var(--ink); }
+  .tag.score { color: var(--ink-3); }
+  .res-item.selected .tag {
+    background: #2b2a26; border-color: rgba(255,255,255,.35); color: #f5f4ef;
+  }
+  .res-item.selected .tag.best { color: #7ee2a8; border-color: #7ee2a8; }
+  .res-title {
+    font-size: 0.7rem; font-weight: 600; line-height: 1.35;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .res-item.selected .res-title { color: #fff; font-weight: 700; }
+  .res-sub {
+    font-family: var(--mono); font-size: 0.56rem;
+    color: var(--ink-3); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .res-item.selected .res-sub { color: rgba(255,255,255,.7); }
+
+  .res-more {
+    padding: 6px; text-align: center;
+    font-size: 0.66rem; font-weight: 700; color: var(--ink-2);
+    background: var(--paper-press);
+    border-top: 1px solid var(--rule-soft);
+  }
+  .res-more::after { content: " ▾"; }
+
+  .group-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; padding: 6px 9px;
+    border-bottom: 1px solid var(--rule-soft);
+    background: var(--paper);
+    font-family: var(--mono); font-size: 0.6rem;
+    font-weight: 700; color: var(--ink);
+    letter-spacing: 0.04em;
+  }
+  .group-head .gcount { color: var(--ink-3); font-weight: 400; }
+  .group-head.open { box-shadow: inset 3px 0 0 var(--green); }
+  .group-items { background: var(--paper-2); }
+
+  .drawer-btn {
+    width: 100%; height: 34px;
+    border: 1px solid var(--ink);
+    background: var(--ink); color: var(--paper);
+    font-size: 0.7rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .drawer-hint {
+    border: 1px dashed var(--rule-soft);
+    padding: 7px 9px;
+    font-family: var(--mono); font-size: 0.58rem;
+    color: var(--ink-3); line-height: 1.5;
+  }
+
+  /* ============================================================
+     右侧说明
+     ============================================================ */
+  .spec { min-width: 0; }
+  .spec-kicker {
+    font-family: var(--mono); font-size: 0.68rem;
+    letter-spacing: 0.12em; color: var(--green); font-weight: 700;
+  }
+  .spec h2 {
+    margin: 6px 0 8px; font-size: 1.2rem;
+    letter-spacing: -0.02em; line-height: 1.25;
+    text-wrap: balance;
+  }
+  .spec-desc { margin: 0 0 16px; font-size: 0.82rem; color: var(--ink-2); }
+  .spec-rows { display: flex; flex-direction: column; gap: 10px; }
+  .spec-row { display: grid; grid-template-columns: 40px 1fr; gap: 10px; }
+  .spec-row dt {
+    font-family: var(--mono); font-size: 0.64rem;
+    color: var(--ink-3); letter-spacing: 0.06em; padding-top: 2px;
+  }
+  .spec-row dd { margin: 0; font-size: 0.78rem; color: var(--ink-2); min-width: 0; }
+  .spec-note {
+    margin-top: 16px; padding-top: 10px;
+    border-top: 1px solid var(--rule-soft);
+    font-family: var(--mono); font-size: 0.62rem;
+    color: var(--ink-3); line-height: 1.6;
+  }
+  .spec-note b { color: var(--ink); }
+
+  /* ============================================================
+     对比与建议
+     ============================================================ */
+  .compare { max-width: 1000px; margin: 40px auto 0; }
+  .compare-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--rule); padding-bottom: 10px;
+  }
+  .compare-head h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
+  .compare-head p { margin: 0; font-size: 0.76rem; color: var(--ink-2); max-width: 54ch; }
+
+  .compare-grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px; margin-top: 16px;
+  }
+  .cmp-card {
+    border: 1px solid var(--rule-soft);
+    background: var(--paper);
+    padding: 14px 16px; min-width: 0;
+  }
+  .cmp-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cmp-idx {
+    font-family: var(--mono); font-size: 0.66rem; font-weight: 800;
+    border: 1px solid var(--ink); padding: 0 5px; line-height: 1.5;
+  }
+  .cmp-top h3 { margin: 0; font-size: 0.88rem; letter-spacing: -0.01em; }
+  .cmp-tag {
+    margin-left: auto; font-family: var(--mono); font-size: 0.6rem;
+    color: var(--green); border: 1px solid var(--green);
+    padding: 1px 5px; letter-spacing: 0.06em; white-space: nowrap;
+  }
+  .cmp-desc { margin: 8px 0 10px; font-size: 0.78rem; color: var(--ink-2); }
+  .cmp-list { display: flex; flex-direction: column; gap: 5px; }
+  .cmp-row { display: grid; grid-template-columns: 38px 1fr; gap: 8px; font-size: 0.73rem; }
+  .cmp-row dt {
+    font-family: var(--mono); color: var(--ink-3);
+    font-size: 0.64rem; letter-spacing: 0.06em; padding-top: 1px;
+  }
+  .cmp-row dd { margin: 0; color: var(--ink-2); min-width: 0; }
+
+  .callout {
+    max-width: 1000px; margin: 18px auto 0;
+    border-left: 3px solid var(--green);
+    background: var(--paper-2);
+    padding: 12px 14px;
+    font-size: 0.8rem; color: var(--ink-2);
+  }
+  .callout strong { color: var(--ink); }
+
+  .foot-note {
+    max-width: 1000px; margin: 26px auto 0;
+    font-family: var(--mono); font-size: 0.64rem; color: var(--ink-3);
+    letter-spacing: 0.06em;
+    border-top: 1px solid var(--rule-soft); padding-top: 10px;
+  }
+
+  /* ============================================================
+     响应式
+     ============================================================ */
+  @media (max-width: 860px) {
+    .stage-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .page-head { padding-top: 16px; }
+    .head-note { text-align: left; }
+    .sw-btn { font-size: 0.74rem; padding: 7px 9px; }
+    .modal-mock { height: 560px; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .res-scroll { max-height: 210px; }
+  }
+</style>
+
+<header class="page-head">
+  <div class="brand">
+    <div class="brand-mark">CN</div>
+    <div>
+      <div class="brand-name">CineNaut <span>/ 手动结果列表</span></div>
+      <div class="brand-sub">专家手动微调 · 结果过多时的四种收束方式</div>
+    </div>
+  </div>
+  <div class="head-note">方案对比<br><b>4</b> OPTIONS</div>
+</header>
+
+<p class="intro">
+  当前列表本身有 <code>max-height: 290px</code>，但 <code>.search-item</code> 的
+  <code>display:flex !important</code> 覆盖了隐藏项的 <code>display:none</code>，
+  所以 53 条会全部渲染进内滚区，“展开/收起”状态也是反的。下面四套方案都先修掉这个问题，
+  再决定结果多了之后怎么收束。
+</p>
+
+<nav class="switcher" role="tablist" aria-label="手动结果列表方案">
+  <button class="sw-btn" role="tab" data-target="a" aria-selected="true">
+    <span class="sw-idx">A</span> 折叠 + 内滚
+  </button>
+  <button class="sw-btn" role="tab" data-target="b" aria-selected="false" tabindex="-1">
+    <span class="sw-idx">B</span> 分页加载
+  </button>
+  <button class="sw-btn" role="tab" data-target="c" aria-selected="false" tabindex="-1">
+    <span class="sw-idx">C</span> Top 3 + 抽屉
+  </button>
+  <button class="sw-btn" role="tab" data-target="d" aria-selected="false" tabindex="-1">
+    <span class="sw-idx">D</span> 画质分组
+  </button>
+</nav>
+
+<section class="stage" aria-live="polite">
+  <div class="stage-head">
+    <span id="stage-name">方案 A · 折叠 + 内滚</span>
+    <span id="stage-tag">改动最小，先修 bug</span>
+  </div>
+
+  <!-- ================= A ================= -->
+  <div class="variant v-a" data-v="a">
+    <div class="stage-grid">
+      <div class="modal-mock">
+        <div class="mm-head">
+          <span class="mm-title">转存助手</span>
+          <span class="mm-sub">专家手动微调</span>
+        </div>
+        <div class="mm-body">
+          <div class="field">
+            <div class="field-label">网盘保存路径</div>
+            <div class="input-mock">/nas/movie/星际穿越 (2014)</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label-row">
+              <span class="field-label">夸克网盘资源检索</span>
+              <span class="field-count">53 条 · 按画质排序</span>
+            </div>
+            <div class="search-line">
+              <div class="input-mock">星际穿越</div>
+              <div class="btn-mock">检索资源</div>
+            </div>
+
+            <div class="results">
+              <div class="res-head"><span>显示前 4 条</span><span>4 / 53</span></div>
+              <div class="res-scroll">
+                <div class="res-item selected">
+                  <div class="res-tags"><span class="tag best">推荐优选</span><span class="tag q">4K超清</span><span class="tag q">杜比/HDR</span><span class="tag score">98分</span></div>
+                  <div class="res-title">008.星际穿越.Interstellar.2014.IMAX.UHD.BluRay.2160p.10bit.HDR...</div>
+                  <div class="res-sub">pan.quark.cn/s/ed3c2cf6f380 · 2026-11-10</div>
+                </div>
+                <div class="res-item">
+                  <div class="res-tags"><span class="tag q">4K超清</span><span class="tag q">蓝光原盘</span><span class="tag score">98分</span></div>
+                  <div class="res-title">星际穿越[豆瓣Top250] Interstellar.2014.UHD.BluRay.2160p.DV.HDR...</div>
+                  <div class="res-sub">pan.quark.cn/s/5a2f5ea05d5a · 2024-10-27</div>
+                </div>
+                <div class="res-item">
+                  <div class="res-tags"><span class="tag q">4K超清</span><span class="tag score">95分</span></div>
+                  <div class="res-title">《Interstellar.2014.2160p.MAX.WEB-DL.DDP5.1.DV.HDR.x265...》</div>
+                  <div class="res-sub">pan.quark.cn/s/bb7d80da1ce4 · 2025-08-06</div>
+                </div>
+                <div class="res-item">
+                  <div class="res-tags"><span class="tag q">1080P高清</span><span class="tag score">77分</span></div>
+                  <div class="res-title">星际穿越 1080P 国英双语 中字</div>
+                  <div class="res-sub">pan.quark.cn/s/77c1a0b2e9f1 · 2024-08-11</div>
+                </div>
+              </div>
+              <div class="res-more">展开查看其余 49 条</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">夸克分享链接</div>
+            <div class="input-mock">https://pan.quark.cn/s/ed3c2cf6f380</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">命名匹配规则</div>
+            <div class="input-mock">保持原名全量转存 (.*) [推荐]</div>
+          </div>
+        </div>
+        <div class="mm-foot"><div class="btn-mock">关闭</div><div class="btn-mock">+ 加入追更</div><div class="btn-mock dark">立即执行转存</div></div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-kicker">OPTION A</div>
+        <h2>折叠 + 固定高度内滚</h2>
+        <p class="spec-desc">首屏只展示 4 条，其余折叠；列表高度固定，展开后在自己内部滚动，下面的分享链接和命名规则不会被推走。</p>
+        <dl class="spec-rows">
+          <div class="spec-row"><dt>优点</dt><dd>改动最小；修掉当前 <code>!important</code> 覆盖后立刻生效；主面板高度稳定。</dd></div>
+          <div class="spec-row"><dt>注意</dt><dd>展开后仍是嵌套滚动，手机上手指容易在列表和弹窗之间“抢”滚动。</dd></div>
+          <div class="spec-row"><dt>适用</dt><dd>只想快速修掉“列表太长”，不改变现有交互。</dd></div>
+        </dl>
+        <div class="spec-note">修复点：<b>display 用类控制</b>，不要在内联样式里同时写 <code>flex !important</code> 和 <code>none</code>；展开状态别写反。</div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= B ================= -->
+  <div class="variant v-b" data-v="b" hidden>
+    <div class="stage-grid">
+      <div class="modal-mock">
+        <div class="mm-head">
+          <span class="mm-title">转存助手</span>
+          <span class="mm-sub">专家手动微调</span>
+        </div>
+        <div class="mm-body">
+          <div class="field">
+            <div class="field-label">网盘保存路径</div>
+            <div class="input-mock">/nas/movie/星际穿越 (2014)</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label-row">
+              <span class="field-label">夸克网盘资源检索</span>
+              <span class="field-count">53 条 · 已显示 5 条</span>
+            </div>
+            <div class="search-line">
+              <div class="input-mock">星际穿越</div>
+              <div class="btn-mock">检索资源</div>
+            </div>
+
+            <div class="results">
+              <div class="res-head"><span>每页 5 条</span><span>5 / 53</span></div>
+              <div class="res-item selected">
+                <div class="res-tags"><span class="tag best">推荐优选</span><span class="tag q">4K超清</span><span class="tag q">杜比/HDR</span><span class="tag score">98分</span></div>
+                <div class="res-title">008.星际穿越.Interstellar.2014.IMAX.UHD.BluRay.2160p.10bit.HDR...</div>
+                <div class="res-sub">pan.quark.cn/s/ed3c2cf6f380 · 2026-11-10</div>
+              </div>
+              <div class="res-item">
+                <div class="res-tags"><span class="tag q">4K超清</span><span class="tag q">蓝光原盘</span><span class="tag score">98分</span></div>
+                <div class="res-title">星际穿越[豆瓣Top250] Interstellar.2014.UHD.BluRay.2160p.DV.HDR...</div>
+                <div class="res-sub">pan.quark.cn/s/5a2f5ea05d5a · 2024-10-27</div>
+              </div>
+              <div class="res-item">
+                <div class="res-tags"><span class="tag q">4K超清</span><span class="tag score">95分</span></div>
+                <div class="res-title">《Interstellar.2014.2160p.MAX.WEB-DL.DDP5.1.DV.HDR.x265...》</div>
+                <div class="res-sub">pan.quark.cn/s/bb7d80da1ce4 · 2025-08-06</div>
+              </div>
+              <div class="res-item">
+                <div class="res-tags"><span class="tag q">1080P高清</span><span class="tag score">77分</span></div>
+                <div class="res-title">星际穿越 1080P 国英双语 中字</div>
+                <div class="res-sub">pan.quark.cn/s/77c1a0b2e9f1 · 2024-08-11</div>
+              </div>
+              <div class="res-item">
+                <div class="res-tags"><span class="tag q">1080P高清</span><span class="tag score">74分</span></div>
+                <div class="res-title">星际穿越 2014 蓝光 1080P 内封中字</div>
+                <div class="res-sub">pan.quark.cn/s/31a9f2c7d0e4 · 2024-06-02</div>
+              </div>
+              <div class="res-more">加载更多 (48)</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">夸克分享链接</div>
+            <div class="input-mock">https://pan.quark.cn/s/ed3c2cf6f380</div>
+          </div>
+        </div>
+        <div class="mm-foot"><div class="btn-mock">关闭</div><div class="btn-mock">+ 加入追更</div><div class="btn-mock dark">立即执行转存</div></div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-kicker">OPTION B</div>
+        <h2>分页 / 加载更多</h2>
+        <p class="spec-desc">每次只渲染 5 条，点“加载更多”追加下一批；不使用嵌套滚动，列表随点击自然变长。</p>
+        <dl class="spec-rows">
+          <div class="spec-row"><dt>优点</dt><dd>没有内滚；用户对列表长度有完全控制；实现简单。</dd></div>
+          <div class="spec-row"><dt>注意</dt><dd>会随加载变长；多次点击才能看到后面的结果。</dd></div>
+          <div class="spec-row"><dt>适用</dt><dd>结果质量差异大，用户通常只看前几条。</dd></div>
+        </dl>
+        <div class="spec-note">实现：<b>pageSize = 5</b>，保留已选中的那条；切页时不要丢掉当前 shareurl。</div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= C ================= -->
+  <div class="variant v-c" data-v="c" hidden>
+    <div class="stage-grid">
+      <div class="modal-mock">
+        <div class="mm-head">
+          <span class="mm-title">转存助手</span>
+          <span class="mm-sub">专家手动微调</span>
+        </div>
+        <div class="mm-body">
+          <div class="field">
+            <div class="field-label">网盘保存路径</div>
+            <div class="input-mock">/nas/movie/星际穿越 (2014)</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label-row">
+              <span class="field-label">夸克网盘资源检索</span>
+              <span class="field-count">53 条 · 已选首推</span>
+            </div>
+            <div class="search-line">
+              <div class="input-mock">星际穿越</div>
+              <div class="btn-mock">检索资源</div>
+            </div>
+
+            <div class="results">
+              <div class="res-head"><span>Top 3 首推</span><span>按画质排序</span></div>
+              <div class="res-item selected">
+                <div class="res-tags"><span class="tag best">推荐优选</span><span class="tag q">4K超清</span><span class="tag q">杜比/HDR</span><span class="tag score">98分</span></div>
+                <div class="res-title">008.星际穿越.Interstellar.2014.IMAX.UHD.BluRay.2160p.10bit.HDR...</div>
+                <div class="res-sub">pan.quark.cn/s/ed3c2cf6f380 · 2026-11-10</div>
+              </div>
+              <div class="res-item">
+                <div class="res-tags"><span class="tag q">4K超清</span><span class="tag q">蓝光原盘</span><span class="tag score">98分</span></div>
+                <div class="res-title">星际穿越[豆瓣Top250] Interstellar.2014.UHD.BluRay.2160p.DV.HDR...</div>
+                <div class="res-sub">pan.quark.cn/s/5a2f5ea05d5a · 2024-10-27</div>
+              </div>
+              <div class="res-item">
+                <div class="res-tags"><span class="tag q">4K超清</span><span class="tag score">95分</span></div>
+                <div class="res-title">《Interstellar.2014.2160p.MAX.WEB-DL.DDP5.1.DV.HDR.x265...》</div>
+                <div class="res-sub">pan.quark.cn/s/bb7d80da1ce4 · 2025-08-06</div>
+              </div>
+            </div>
+
+            <div class="drawer-btn">查看全部 53 条结果 →</div>
+            <div class="drawer-hint">点击后打开独立结果抽屉：可按 4K / 1080P 筛选、排序，并在抽屉内滚动。</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">夸克分享链接</div>
+            <div class="input-mock">https://pan.quark.cn/s/ed3c2cf6f380</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">命名匹配规则</div>
+            <div class="input-mock">保持原名全量转存 (.*) [推荐]</div>
+          </div>
+        </div>
+        <div class="mm-foot"><div class="btn-mock">关闭</div><div class="btn-mock">+ 加入追更</div><div class="btn-mock dark">立即执行转存</div></div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-kicker">OPTION C</div>
+        <h2>Top 3 + 独立结果抽屉</h2>
+        <p class="spec-desc">主面板只保留 3 条首推和当前选中项；结果多时点“查看全部”进入独立抽屉，筛选、排序、滚动都在抽屉里完成。</p>
+        <dl class="spec-rows">
+          <div class="spec-row"><dt>优点</dt><dd>主面板最短；结果多时也不挤压表单；移动端最友好，抽屉可以做成全屏。</dd></div>
+          <div class="spec-row"><dt>注意</dt><dd>多一层交互；抽屉要处理好返回、选中回填和滚动位置。</dd></div>
+          <div class="spec-row"><dt>适用</dt><dd>结果经常几十条，用户需要比较后再选。</dd></div>
+        </dl>
+        <div class="spec-note">推荐：<b>移动端默认 C</b>，桌面端也可以保留 A 的内滚作为兜底。</div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= D ================= -->
+  <div class="variant v-d" data-v="d" hidden>
+    <div class="stage-grid">
+      <div class="modal-mock">
+        <div class="mm-head">
+          <span class="mm-title">转存助手</span>
+          <span class="mm-sub">专家手动微调</span>
+        </div>
+        <div class="mm-body">
+          <div class="field">
+            <div class="field-label">网盘保存路径</div>
+            <div class="input-mock">/nas/movie/星际穿越 (2014)</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label-row">
+              <span class="field-label">夸克网盘资源检索</span>
+              <span class="field-count">53 条 · 已按画质分组</span>
+            </div>
+            <div class="search-line">
+              <div class="input-mock">星际穿越</div>
+              <div class="btn-mock">检索资源</div>
+            </div>
+
+            <div class="results">
+              <div class="group-head"><span>4K 超清</span><span class="gcount">12 条</span></div>
+              <div class="group-head"><span>1080P 高清</span><span class="gcount">31 条</span></div>
+              <div class="group-head open"><span>其他 / 未知</span><span class="gcount">10 条</span></div>
+              <div class="group-items">
+                <div class="res-item selected">
+                  <div class="res-tags"><span class="tag best">推荐优选</span><span class="tag q">4K超清</span><span class="tag score">98分</span></div>
+                  <div class="res-title">008.星际穿越.Interstellar.2014.IMAX.UHD.BluRay.2160p...</div>
+                  <div class="res-sub">pan.quark.cn/s/ed3c2cf6f380 · 2026-11-10</div>
+                </div>
+                <div class="res-item">
+                  <div class="res-tags"><span class="tag q">1080P高清</span><span class="tag score">77分</span></div>
+                  <div class="res-title">星际穿越 1080P 国英双语 中字</div>
+                  <div class="res-sub">pan.quark.cn/s/77c1a0b2e9f1 · 2024-08-11</div>
+                </div>
+                <div class="res-item">
+                  <div class="res-tags"><span class="tag q">其他</span><span class="tag score">63分</span></div>
+                  <div class="res-title">星际穿越 高清 中字 合集</div>
+                  <div class="res-sub">pan.quark.cn/s/9f2d1c7a6b3e · 2024-05-19</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">夸克分享链接</div>
+            <div class="input-mock">https://pan.quark.cn/s/ed3c2cf6f380</div>
+          </div>
+        </div>
+        <div class="mm-foot"><div class="btn-mock">关闭</div><div class="btn-mock">+ 加入追更</div><div class="btn-mock dark">立即执行转存</div></div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-kicker">OPTION D</div>
+        <h2>按画质分组折叠</h2>
+        <p class="spec-desc">把结果按 4K / 1080P / 其他分组，默认只展开一组；每组显示数量，用户先选画质再看具体资源。</p>
+        <dl class="spec-rows">
+          <div class="spec-row"><dt>优点</dt><dd>结构清晰，4K 和 1080P 一眼分开；默认高度可控。</dd></div>
+          <div class="spec-row"><dt>注意</dt><dd>分组逻辑要稳定；跨组比较不如平铺直观。</dd></div>
+          <div class="spec-row"><dt>适用</dt><dd>结果画质层次明显，用户有明确画质偏好。</dd></div>
+        </dl>
+        <div class="spec-note">实现：按 <b>ai_tags / 标题特征</b> 分组，保留“推荐优选”跨组置顶。</div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="compare">
+  <div class="compare-head">
+    <h2>怎么选</h2>
+    <p>四套都先修复当前“隐藏失效”的 bug；区别在于结果多了之后，是留在面板里还是移到独立层。</p>
+  </div>
+
+  <div class="compare-grid">
+    <article class="cmp-card">
+      <div class="cmp-top"><span class="cmp-idx">A</span><h3>折叠 + 内滚</h3><span class="cmp-tag">改动最小</span></div>
+      <p class="cmp-desc">首屏 4 条 + 展开，列表固定高度内滚。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>优点</dt><dd>主面板高度稳定，修复成本最低</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>嵌套滚动，手机上略绕</dd></div>
+      </div>
+    </article>
+
+    <article class="cmp-card">
+      <div class="cmp-top"><span class="cmp-idx">B</span><h3>分页加载</h3><span class="cmp-tag">最直接</span></div>
+      <p class="cmp-desc">每次 5 条，点“加载更多”追加。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>优点</dt><dd>无内滚，长度可控</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>会随加载变长，多次点击</dd></div>
+      </div>
+    </article>
+
+    <article class="cmp-card">
+      <div class="cmp-top"><span class="cmp-idx">C</span><h3>Top 3 + 抽屉</h3><span class="cmp-tag">最推荐</span></div>
+      <p class="cmp-desc">主面板 3 条，全部结果进独立抽屉。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>优点</dt><dd>主面板最短，移动端最友好</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>多一层，抽屉交互要做好</dd></div>
+      </div>
+    </article>
+
+    <article class="cmp-card">
+      <div class="cmp-top"><span class="cmp-idx">D</span><h3>画质分组</h3><span class="cmp-tag">最清晰</span></div>
+      <p class="cmp-desc">按 4K / 1080P / 其他分组折叠。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>优点</dt><dd>画质层次一目了然</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>分组规则要稳定，跨组比较弱</dd></div>
+      </div>
+    </article>
+  </div>
+
+  <div class="callout">
+    <strong>我的建议：</strong>先做 <strong>A</strong> 把当前的 bug 修掉（成本最低），
+    然后把移动端升级成 <strong>C</strong>：主面板只留 Top 3，全部结果进抽屉。
+    B 适合想保持平铺、又不想嵌套滚动的场景；D 适合结果画质差异特别大的时候。
+  </div>
+
+  <div class="foot-note">
+    CINENAUT / MANUAL RESULTS · 米纸 #f7f6f2 · 墨线 #16150f · 强调绿 #1b7f43
+  </div>
+</section>
+
+<script>
+  (function () {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.sw-btn'));
+    var variants = Array.prototype.slice.call(document.querySelectorAll('.variant'));
+    var nameEl = document.getElementById('stage-name');
+    var tagEl = document.getElementById('stage-tag');
+
+    var meta = {
+      a: { name: '方案 A · 折叠 + 内滚', tag: '改动最小，先修 bug' },
+      b: { name: '方案 B · 分页加载', tag: '无嵌套滚动，长度可控' },
+      c: { name: '方案 C · Top 3 + 抽屉', tag: '主面板最短，移动端最友好' },
+      d: { name: '方案 D · 画质分组', tag: '结构清晰，按画质收束' }
+    };
+
+    function activate(key) {
+      variants.forEach(function (v) {
+        v.hidden = v.getAttribute('data-v') !== key;
+      });
+      tabs.forEach(function (t) {
+        var on = t.getAttribute('data-target') === key;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
+      });
+      var m = meta[key];
+      if (m) {
+        nameEl.textContent = m.name;
+        tagEl.textContent = m.tag;
+      }
+    }
+
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () {
+        activate(t.getAttribute('data-target'));
+      });
+      t.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+        var i = tabs.indexOf(t);
+        var n = (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[n].focus();
+        activate(tabs[n].getAttribute('data-target'));
+      });
+    });
+
+    activate('a');
+  })();
+</script>

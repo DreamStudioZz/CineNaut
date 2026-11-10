@@ -1,0 +1,18 @@
+services:
+  cinenaut:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zdkzdk/cinenaut:latest
+    container_name: cinenaut
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # 持久化存储目录：存储 config.json 及后续转存数据库缓存
+      - ./data:/app/data
+    environment:
+      - TZ=Asia/Shanghai
+      - DATA_DIR=/app/data
+      # 管理员访问密钥：设置后，只有访问时带上 key（如 http://IP:8000/?key=your_key）才能查看和操作【任务列表】与【系统配置】；不设或留空则全公开
+      - ADMIN_KEY=

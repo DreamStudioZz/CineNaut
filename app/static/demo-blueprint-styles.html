@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI BLUEPRINT 酷炫改版方案演进与对比体验</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #090a0f;
+      --card-bg-dark: #12151e;
+      --accent-cyan: #00f2fe;
+      --accent-purple: #9d4edd;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-pink: #ec4899;
+      --font-code: 'JetBrains Mono', monospace;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg-dark);
+      color: #e2e8f0;
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding-bottom: 80px;
+    }
+
+    /* 顶部导航与控制条 */
+    .top-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: rgba(9, 10, 15, 0.85);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #00f2fe, #4facfe);
+      color: #000;
+      font-family: var(--font-code);
+      font-weight: 800;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+
+    .brand-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-subtitle {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-left: 8px;
+      padding-left: 8px;
+      border-left: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-toggle-state {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-toggle-state:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .nav-scheme-tabs {
+      display: flex;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    /* 页面容器 */
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* 原始对比简析 Banner */
+    .analysis-hero {
+      background: radial-gradient(circle at top center, rgba(30, 41, 59, 0.5), transparent 70%);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 36px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .hero-text h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .hero-text p {
+      font-size: 0.88rem;
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+
+    .hero-tags {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .hero-tag {
+      font-size: 0.72rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #cbd5e1;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    /* 方案展示栅格 */
+    .schemes-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 50px;
+    }
+
+    .scheme-section {
+      background: rgba(18, 21, 30, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 28px;
+      position: relative;
+    }
+
+    .scheme-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 22px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .scheme-title-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .scheme-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-code);
+      font-size: 0.85rem;
+      font-weight: 800;
+    }
+
+    .scheme-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .scheme-desc {
+      font-size: 0.84rem;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .scheme-badges {
+      display: flex;
+      gap: 8px;
+    }
+
+    .scheme-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* 组件展示画布 */
+    .preview-canvas {
+      background: #06070b;
+      border-radius: 12px;
+      padding: 40px 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 2px 20px rgba(0, 0, 0, 0.6);
+    }
+
+    /* 背景网格微效 */
+    .preview-canvas::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      background-size: 20px 20px;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .blueprint-wrapper {
+      width: 100%;
+      max-width: 740px;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ==========================================================================
+       【方案 1】Apple Intelligence 灵动光晕态 (流体极光 + 柔光磨砂玻璃)
+       ========================================================================== */
+    .scheme-apple {
+      position: relative;
+      border-radius: 16px;
+      padding: 22px 24px;
+      background: rgba(18, 20, 29, 0.65);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 
+        0 12px 40px -10px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+      overflow: hidden;
+      transition: all 0.4s ease;
+    }
+
+    /* 流动的 Apple Intelligence 彩虹光晕底纹 */
+    .apple-aurora-glow {
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 30% 30%, rgba(236, 72, 153, 0.15), transparent 40%),
+                  radial-gradient(circle at 70% 30%, rgba(0, 242, 254, 0.15), transparent 40%),
+                  radial-gradient(circle at 50% 80%, rgba(168, 85, 247, 0.18), transparent 45%);
+      filter: blur(40px);
+      animation: auroraRotate 12s infinite alternate ease-in-out;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes auroraRotate {
+      0% { transform: rotate(0deg) scale(0.9); }
+      100% { transform: rotate(180deg) scale(1.1); }
+    }
+
+    .apple-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* 顶部光标胶囊 */
+    .apple-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .apple-title-skel {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .apple-logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .apple-logo-badge svg {
+      animation: spinSlow 8s linear infinite;
+    }
+
+    @keyframes spinSlow {
+      100% { transform: rotate(360deg); }
+    }
+
+    .apple-sparkle-text {
+      background: linear-gradient(90deg, #ec4899, #8b5cf6, #00f2fe, #ec4899);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: shimmerText 3s linear infinite;
+      font-weight: 700;
+    }
+
+    @keyframes shimmerText {
+      to { background-position: 200% center; }
+    }
+
+    .apple-specs-pills {
+      display: flex;
+      gap: 8px;
+    }
+
+    .apple-spec-pill {
+      height: 22px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 0 10px;
+      font-size: 0.72rem;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+    }
+
+    /* 中间卡片网格 */
+    .apple-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .apple-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 14px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .apple-card:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .apple-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 10px;
+    }
+
+    .apple-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      position: relative;
+    }
+
+    .apple-dot.green {
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+    }
+
+    .apple-dot.purple {
+      background: #a855f7;
+      box-shadow: 0 0 10px #a855f7;
+    }
+
+    .apple-dot::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 1px solid currentColor;
+      opacity: 0.6;
+      animation: ripple 1.8s infinite ease-out;
+    }
+
+    @keyframes ripple {
+      0% { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+
+    .apple-skeleton-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .apple-line {
+      height: 10px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.06) 75%);
+      background-size: 200% 100%;
+      animation: shimmerBar 1.8s infinite;
+    }
+
+    @keyframes shimmerBar {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* 路径框 */
+    .apple-path-bar {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-code);
+      font-size: 0.78rem;
+      color: #94a3b8;
+    }
+
+    .apple-path-icon {
+      color: #00f2fe;
+    }
+
+    /* 底部按钮栏 */
+    .apple-btn-group {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 12px;
+    }
+
+    .apple-btn-primary {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: #fff;
+      border: none;
+      height: 44px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 18px rgba(99, 102, 241, 0.4);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+
+    .apple-btn-primary:hover {
+      box-shadow: 0 6px 24px rgba(99, 102, 241, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .apple-btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #e2e8f0;
+      height: 44px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .apple-btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+
+    /* ==========================================================================
+       【方案 2】赛博霓虹激光矩阵 (Border Beam 流光跑马灯 + 暗黑终端脉冲)
+       ========================================================================== */
+    .scheme-cyber {
+      position: relative;
+      background: #0b0e17;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+      overflow: hidden;
+    }
+
+    /* 炫酷 Border-Beam 跑马灯旋转边框 */
+    .cyber-border-beam {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      padding: 1.5px;
+      background: conic-gradient(from var(--angle), transparent 0%, #00f2fe 10%, #9d4edd 25%, transparent 35%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+      animation: rotateBorder 4s linear infinite;
+    }
+
+    @property --angle {
+      syntax: '<angle>';
+      initial-value: 0deg;
+      inherits: false;
+    }
+
+    @keyframes rotateBorder {
+      to { --angle: 360deg; }
+    }
+
+    .cyber-badge {
+      position: absolute;
+      top: 0;
+      right: 28px;
+      background: #00f2fe;
+      color: #0b0e17;
+      font-family: var(--font-code);
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 3px 12px;
+      border-radius: 0 0 8px 8px;
+      letter-spacing: 0.1em;
+      box-shadow: 0 0 16px rgba(0, 242, 254, 0.6);
+      z-index: 5;
+    }
+
+    .cyber-grid-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* 顶部流线 */
+    .cyber-header-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .cyber-chip-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: rgba(0, 242, 254, 0.1);
+      border: 1px solid rgba(0, 242, 254, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #00f2fe;
+      box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
+    }
+
+    .cyber-pulse-bar {
+      flex: 1;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 3px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cyber-pulse-bar::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, #00f2fe, #9d4edd, transparent);
+      animation: cyberSweep 2s infinite ease-in-out;
+    }
+
+    @keyframes cyberSweep {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(300%); }
+    }
+
+    /* 左右分栏 */
+    .cyber-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .cyber-panel {
+      background: rgba(16, 21, 35, 0.6);
+      border: 1px solid rgba(56, 189, 248, 0.15);
+      border-radius: 8px;
+      padding: 14px;
+      position: relative;
+    }
+
+    .cyber-panel::before {
+      content: '';
+      position: absolute;
+      top: -1px;
+      left: 10px;
+      width: 24px;
+      height: 2px;
+      background: #00f2fe;
+      box-shadow: 0 0 8px #00f2fe;
+    }
+
+    .cyber-panel-title {
+      font-size: 0.76rem;
+      font-weight: 700;
+      font-family: var(--font-code);
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .cyber-stream-log {
+      font-family: var(--font-code);
+      font-size: 0.72rem;
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    .cyber-stream-highlight {
+      color: #10b981;
+      font-weight: 600;
+    }
+
+    /* 路径框 */
+    .cyber-terminal-box {
+      background: #06080d;
+      border: 1px dashed rgba(0, 242, 254, 0.3);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: var(--font-code);
+      font-size: 0.78rem;
+      color: #a5f3fc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .cyber-calc-tag {
+      font-size: 0.68rem;
+      background: rgba(0, 242, 254, 0.15);
+      border: 1px solid rgba(0, 242, 254, 0.4);
+      color: #00f2fe;
+      padding: 2px 6px;
+      border-radius: 3px;
+      animation: blinkText 1.5s infinite;
+    }
+
+    @keyframes blinkText {
+      50% { opacity: 0.4; }
+    }
+
+    /* 按钮组 */
+    .cyber-btns {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 12px;
+    }
+
+    .cyber-btn-main {
+      background: linear-gradient(90deg, #0284c7, #0369a1);
+      border: 1px solid #38bdf8;
+      color: #ffffff;
+      height: 44px;
+      border-radius: 6px;
+      font-family: var(--font-code);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cyber-btn-main::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%; width: 50%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      transform: skewX(-20deg);
+      animation: btnGlint 3s infinite;
+    }
+
+    @keyframes btnGlint {
+      100% { left: 200%; }
+    }
+
+    .cyber-btn-sec {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #94a3b8;
+      height: 44px;
+      border-radius: 6px;
+      font-family: var(--font-code);
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+
+    /* ==========================================================================
+       【方案 3】科幻 HUD 战术蓝图 (Sci-Fi Holographic CAD Blueprint)
+       ========================================================================== */
+    .scheme-hud {
+      position: relative;
+      background: #091322;
+      border: 1px solid #1e3a5f;
+      border-radius: 4px;
+      padding: 24px;
+      box-shadow: inset 0 0 30px rgba(0, 102, 255, 0.15);
+    }
+
+    /* 四个角的 HUD 战术瞄准切角 */
+    .hud-corner {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-color: #38bdf8;
+      pointer-events: none;
+    }
+
+    .hud-c-tl { top: -1px; left: -1px; border-top: 2px solid #38bdf8; border-left: 2px solid #38bdf8; }
+    .hud-c-tr { top: -1px; right: -1px; border-top: 2px solid #38bdf8; border-right: 2px solid #38bdf8; }
+    .hud-c-bl { bottom: -1px; left: -1px; border-bottom: 2px solid #38bdf8; border-left: 2px solid #38bdf8; }
+    .hud-c-br { bottom: -1px; right: -1px; border-bottom: 2px solid #38bdf8; border-right: 2px solid #38bdf8; }
+
+    .hud-grid-bg {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+      background-size: 16px 16px;
+      pointer-events: none;
+    }
+
+    .hud-badge {
+      position: absolute;
+      top: -12px;
+      right: 18px;
+      background: #0284c7;
+      color: #fff;
+      font-family: var(--font-code);
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 2px 10px;
+      border: 1px solid #38bdf8;
+      clip-path: polygon(0 0, 100% 0, 92% 100%, 8% 100%);
+    }
+
+    .hud-body {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .hud-header-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-code);
+      font-size: 0.72rem;
+      color: #0284c7;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+      padding-bottom: 8px;
+    }
+
+    .hud-status-stream {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .hud-box {
+      background: rgba(2, 20, 48, 0.6);
+      border: 1px solid #1e3a5f;
+      border-left: 3px solid #38bdf8;
+      padding: 12px;
+    }
+
+    .hud-box-title {
+      font-family: var(--font-code);
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #e0f2fe;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hud-scanline {
+      height: 4px;
+      background: rgba(56, 189, 248, 0.1);
+      margin-top: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hud-scanline::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 30%; height: 100%;
+      background: #38bdf8;
+      box-shadow: 0 0 8px #38bdf8;
+      animation: scanSweep 1.5s infinite ease-in-out;
+    }
+
+    @keyframes scanSweep {
+      0% { left: -30%; }
+      100% { left: 100%; }
+    }
+
+    .hud-actions {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 12px;
+    }
+
+    .hud-btn-prime {
+      background: #0369a1;
+      border: 1px solid #38bdf8;
+      color: #fff;
+      font-family: var(--font-code);
+      font-size: 0.82rem;
+      font-weight: 700;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    }
+
+    .hud-btn-sub {
+      background: transparent;
+      border: 1px solid #1e3a5f;
+      color: #7dd3fc;
+      font-family: var(--font-code);
+      font-size: 0.8rem;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+
+    /* ==========================================================================
+       【方案 4】工匠瑞士高定 CAD 进阶版 (保持原生米纸底色，升级精密动态微质感)
+       ========================================================================== */
+    .scheme-craft {
+      position: relative;
+      background: #fdfbf7;
+      border: 1.5px solid #111110;
+      border-radius: 6px;
+      padding: 24px;
+      color: #111110;
+      box-shadow: 5px 5px 0px #111110;
+    }
+
+    .craft-badge {
+      position: absolute;
+      top: -12px;
+      right: 18px;
+      background: #111110;
+      color: #fff;
+      font-family: var(--font-code);
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 3px 12px;
+      border-radius: 3px;
+      letter-spacing: 0.08em;
+      box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
+    }
+
+    .craft-inner {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .craft-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .craft-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .craft-ruler-bar {
+      height: 4px;
+      background: repeating-linear-gradient(90deg, #111 0px, #111 2px, transparent 2px, transparent 6px);
+      opacity: 0.4;
+      margin: 4px 0 8px;
+    }
+
+    .craft-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .craft-box {
+      background: #f5f2eb;
+      border: 1px solid #dcd7ce;
+      border-radius: 4px;
+      padding: 12px;
+    }
+
+    .craft-dot-pulse {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      background: #15803d;
+      border-radius: 50%;
+      animation: pulseCraft 1.2s infinite;
+    }
+
+    @keyframes pulseCraft {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.4); opacity: 0.6; }
+    }
+
+    .craft-btn-row {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 12px;
+    }
+
+    .craft-btn-prime {
+      background: #111110;
+      color: #fff;
+      border: 1.5px solid #111110;
+      height: 42px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 3px 3px 0px rgba(0,0,0,0.15);
+      transition: all 0.15s;
+    }
+
+    .craft-btn-prime:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
+    }
+
+    .craft-btn-sec {
+      background: #fff;
+      color: #111110;
+      border: 1.5px dashed #94a3b8;
+      height: 42px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    /* 方案横向对比参数表 */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 32px;
+      background: rgba(18, 21, 30, 0.7);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .compare-table th, .compare-table td {
+      padding: 14px 18px;
+      text-align: left;
+      font-size: 0.85rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .compare-table th {
+      background: rgba(255, 255, 255, 0.03);
+      color: #94a3b8;
+      font-weight: 600;
+    }
+
+    .compare-table td {
+      color: #cbd5e1;
+    }
+
+    .badge-highlight {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+
+    /* 浮动选定条 */
+    .selection-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border-radius: 30px;
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 顶部控制条 -->
+  <header class="top-header">
+    <div class="brand-group">
+      <span class="brand-badge">UI LAB</span>
+      <div class="brand-title">
+        <span>AI BLUEPRINT 酷炫视觉方案重构</span>
+        <span class="brand-subtitle">4 种前沿动态设计语言与实装选择</span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <button class="btn-toggle-state" id="btn-toggle-state" onclick="toggleSimState()">
+        <span id="state-indicator" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;"></span>
+        <span id="state-text">模拟：AI 实时推演中</span>
+      </button>
+
+      <div class="nav-scheme-tabs">
+        <button class="tab-btn active" onclick="scrollToScheme('scheme-1')">方案 1: Apple 光晕</button>
+        <button class="tab-btn" onclick="scrollToScheme('scheme-2')">方案 2: 赛博霓虹</button>
+        <button class="tab-btn" onclick="scrollToScheme('scheme-3')">方案 3: HUD 蓝图</button>
+        <button class="tab-btn" onclick="scrollToScheme('scheme-4')">方案 4: 精工瑞士</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- 分析与升级方向简述 -->
+    <div class="analysis-hero">
+      <div class="hero-text">
+        <h1>为什么原有设计显得单薄？我们如何将它变得极具科技感与视觉张力：</h1>
+        <p>原设计采用纯纸质 CAD 灰度虚线，元素偏静态、层次扁平，在“AI 正在进行目录穿透、深度刮削、引流清洗”等高算力场景下缺少科技推演的动态反馈。本次提供 4 套进阶视觉方案供您直接挑选：</p>
+        <div class="hero-tags">
+          <span class="hero-tag">✨ 流动微光 (Shimmer)</span>
+          <span class="hero-tag">⚡ 边框能量流 (Border Beam)</span>
+          <span class="hero-tag">🫧 毛玻璃拟物 (Glassmorphism)</span>
+          <span class="hero-tag">🎯 战术级 HUD 仪表盘</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="schemes-grid">
+
+      <!-- ================= 方案 1 ================= -->
+      <section class="scheme-section" id="scheme-1">
+        <div class="scheme-meta">
+          <div>
+            <div class="scheme-title-box">
+              <div class="scheme-num" style="background: rgba(168, 85, 247, 0.2); color: #c084fc;">1</div>
+              <div>
+                <h2 class="scheme-title">Apple Intelligence 灵动光晕态 (推荐 · 高级科技感)</h2>
+                <div class="scheme-desc">液态极光漫反射 + 双层极细微发光磨砂玻璃 + 呼吸流彩胶囊。质感极度通透，绝不突兀，兼顾轻盈与前沿高级感。</div>
+              </div>
+            </div>
+          </div>
+          <div class="scheme-badges">
+            <span class="scheme-badge" style="background: rgba(236,72,153,0.15); color: #f472b6; border: 1px solid rgba(236,72,153,0.3);">Siri 级流光</span>
+            <span class="scheme-badge" style="background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">超轻磨砂</span>
+          </div>
+        </div>
+
+        <div class="preview-canvas">
+          <div class="blueprint-wrapper">
+            <div class="scheme-apple">
+              <div class="apple-aurora-glow"></div>
+              
+              <div class="apple-content">
+                <!-- 顶栏状态 -->
+                <div class="apple-top-row">
+                  <div class="apple-title-skel">
+                    <span class="apple-logo-badge">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      <span class="apple-sparkle-text">AI BLUEPRINT</span>
+                    </span>
+                    <span style="font-size: 0.88rem; font-weight: 700; color: #fff;">影视资源智能透镜与落地架构</span>
+                  </div>
+                  <div class="apple-specs-pills">
+                    <span class="apple-spec-pill">4K UHD</span>
+                    <span class="apple-spec-pill">DDP 5.1</span>
+                    <span class="apple-spec-pill" style="color: #34d399; border-color: rgba(16,185,129,0.3);">全自动刮削</span>
+                  </div>
+                </div>
+
+                <!-- 两个半透明计算卡片 -->
+                <div class="apple-grid">
+                  <div class="apple-card">
+                    <div class="apple-card-header">
+                      <span class="apple-dot green"></span>
+                      <span>网盘目录穿透 & 广告清洗</span>
+                    </div>
+                    <div class="apple-skeleton-lines">
+                      <div class="apple-line" style="width: 90%;"></div>
+                      <div class="apple-line" style="width: 65%;"></div>
+                    </div>
+                  </div>
+
+                  <div class="apple-card">
+                    <div class="apple-card-header">
+                      <span class="apple-dot purple"></span>
+                      <span>Emby / Plex 刮削与对齐</span>
+                    </div>
+                    <div class="apple-skeleton-lines">
+                      <div class="apple-line" style="width: 82%;"></div>
+                      <div class="apple-line" style="width: 50%;"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 落地路径条 -->
+                <div class="apple-path-bar">
+                  <svg class="apple-path-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <span>/nas/Media/TV/The.Penguin.S01 (落地目录智能结算中...)</span>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="apple-btn-group">
+                  <button class="apple-btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <span>最佳方案生成中 · 算力融合中...</span>
+                  </button>
+                  <button class="apple-btn-secondary">+ 加入后台追更 (就绪)</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ================= 方案 2 ================= -->
+      <section class="scheme-section" id="scheme-2">
+        <div class="scheme-meta">
+          <div>
+            <div class="scheme-title-box">
+              <div class="scheme-num" style="background: rgba(0, 242, 254, 0.2); color: #00f2fe;">2</div>
+              <div>
+                <h2 class="scheme-title">赛博流光矩阵 (Border Beam 跑马灯激光束 · 硬核极客)</h2>
+                <div class="scheme-desc">跑马灯渐变激光束绕边环行 + 顶部悬挂式发光芯片徽章 + 终端高亮代码流。一眼看出 AI 正在全速超频运转。</div>
+              </div>
+            </div>
+          </div>
+          <div class="scheme-badges">
+            <span class="scheme-badge" style="background: rgba(0,242,254,0.15); color: #00f2fe; border: 1px solid rgba(0,242,254,0.3);">Border Beam</span>
+            <span class="scheme-badge" style="background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.3);">赛博超频</span>
+          </div>
+        </div>
+
+        <div class="preview-canvas">
+          <div class="blueprint-wrapper">
+            <div class="scheme-cyber">
+              <div class="cyber-border-beam"></div>
+              <span class="cyber-badge">⚡ AI BLUEPRINT</span>
+
+              <div class="cyber-grid-layout">
+                <!-- 顶部扫描流 -->
+                <div class="cyber-header-row">
+                  <div class="cyber-chip-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+                  </div>
+                  <div style="flex: 1;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.75rem;font-family:var(--font-code);color:#94a3b8;margin-bottom:4px;">
+                      <span>NEURAL DISCOVERY ENGINE v3.4</span>
+                      <span style="color:#00f2fe;">ANALYZING [87%]</span>
+                    </div>
+                    <div class="cyber-pulse-bar"></div>
+                  </div>
+                </div>
+
+                <!-- 两个硬核流控制台 -->
+                <div class="cyber-columns">
+                  <div class="cyber-panel">
+                    <div class="cyber-panel-title">
+                      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#00f2fe;box-shadow:0 0 6px #00f2fe;"></span>
+                      PROBE & CLEANSE
+                    </div>
+                    <div class="cyber-stream-log">
+                      <div>> 探查网盘目录结构树...</div>
+                      <div class="cyber-stream-highlight">√ 已剔除 4 个导流广告文件与水印</div>
+                    </div>
+                  </div>
+
+                  <div class="cyber-panel">
+                    <div class="cyber-panel-title">
+                      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#9d4edd;box-shadow:0 0 6px #9d4edd;"></span>
+                      TMDB / EMBY SCRAPING
+                    </div>
+                    <div class="cyber-stream-log">
+                      <div>> TMDB 对齐: 企鹅人 (2024) [tt15435876]</div>
+                      <div style="color:#38bdf8;">> 标准化分集: S01E01 - After Hours</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 路径条 -->
+                <div class="cyber-terminal-box">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="color:#00f2fe;">$</span>
+                    <span>/nas/Media/Series/The Penguin (2024) [tmdbid-154358]</span>
+                  </div>
+                  <span class="cyber-calc-tag">CALCULATING</span>
+                </div>
+
+                <!-- 按钮 -->
+                <div class="cyber-btns">
+                  <button class="cyber-btn-main">
+                    <span>⚡ 正在合成最优落盘指令...</span>
+                  </button>
+                  <button class="cyber-btn-sec">+ 加入后台追更</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ================= 方案 3 ================= -->
+      <section class="scheme-section" id="scheme-3">
+        <div class="scheme-meta">
+          <div>
+            <div class="scheme-title-box">
+              <div class="scheme-num" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8;">3</div>
+              <div>
+                <h2 class="scheme-title">科幻 HUD 全息战术蓝图 (Sci-Fi Hologram Blueprint)</h2>
+                <div class="scheme-desc">战术四角取景切角标线 + 坐标网格底衬 + 矩阵扫描光束。真正意义上的“BLUEPRINT（蓝图图纸）”科幻化重塑。</div>
+              </div>
+            </div>
+          </div>
+          <div class="scheme-badges">
+            <span class="scheme-badge" style="background: rgba(14,165,233,0.15); color: #38bdf8; border: 1px solid rgba(14,165,233,0.3);">HUD 瞄准角</span>
+            <span class="scheme-badge" style="background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3);">全息图纸</span>
+          </div>
+        </div>
+
+        <div class="preview-canvas">
+          <div class="blueprint-wrapper">
+            <div class="scheme-hud">
+              <!-- HUD 切角 -->
+              <div class="hud-corner hud-c-tl"></div>
+              <div class="hud-corner hud-c-tr"></div>
+              <div class="hud-corner hud-c-bl"></div>
+              <div class="hud-corner hud-c-br"></div>
+              <div class="hud-grid-bg"></div>
+
+              <span class="hud-badge">HUD // ARCHITECT</span>
+
+              <div class="hud-body">
+                <div class="hud-header-meta">
+                  <span>SYS.LATENCY: 18ms</span>
+                  <span>TARGET: CLOUD_DRIVE_01</span>
+                  <span>CONFIDENCE: 99.4%</span>
+                </div>
+
+                <div class="hud-status-stream">
+                  <div class="hud-box">
+                    <div class="hud-box-title">
+                      <span style="color:#38bdf8;">[01]</span>
+                      <span>目录深度递归遍历</span>
+                    </div>
+                    <div class="hud-scanline"></div>
+                    <div style="font-family:var(--font-code);font-size:0.7rem;color:#7dd3fc;margin-top:6px;">8 文件 / 52.4 GB 清洗就绪</div>
+                  </div>
+
+                  <div class="hud-box">
+                    <div class="hud-box-title">
+                      <span style="color:#38bdf8;">[02]</span>
+                      <span>元数据规则化构建</span>
+                    </div>
+                    <div class="hud-scanline" style="animation-delay: -0.5s;"></div>
+                    <div style="font-family:var(--font-code);font-size:0.7rem;color:#7dd3fc;margin-top:6px;">Emby Naming Format v2.1</div>
+                  </div>
+                </div>
+
+                <div style="background: rgba(2, 10, 24, 0.7); border: 1px solid #1e3a5f; padding: 10px 14px; font-family: var(--font-code); font-size: 0.75rem; color: #bae6fd;">
+                  <span>LOC: </span>/nas/media/series/the_penguin/season_01/
+                </div>
+
+                <div class="hud-actions">
+                  <button class="hud-btn-prime">◬ 执行蓝图计划 [计算中...]</button>
+                  <button class="hud-btn-sub">+ 挂载追更引擎</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ================= 方案 4 ================= -->
+      <section class="scheme-section" id="scheme-4">
+        <div class="scheme-meta">
+          <div>
+            <div class="scheme-title-box">
+              <div class="scheme-num" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">4</div>
+              <div>
+                <h2 class="scheme-title">工匠高定 CAD 瑞士纸质版 (原版同根生 · 精工微质感跃升)</h2>
+                <div class="scheme-desc">如果您希望保持现有的米白色纸质工匠（Craftsman）调性，该方案引入精密标尺刻度线、3D 微硬阴影、动态呼吸指示器与平滑微动效，高级而克制。</div>
+              </div>
+            </div>
+          </div>
+          <div class="scheme-badges">
+            <span class="scheme-badge" style="background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3);">经典米纸</span>
+            <span class="scheme-badge" style="background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2);">瑞士制表美学</span>
+          </div>
+        </div>
+
+        <div class="preview-canvas" style="background: #e5e0d8;">
+          <div class="blueprint-wrapper">
+            <div class="scheme-craft">
+              <span class="craft-badge">AI BLUEPRINT</span>
+
+              <div class="craft-inner">
+                <div class="craft-top">
+                  <div>
+                    <div class="craft-title">方案推演与落盘蓝图</div>
+                    <div style="font-size: 0.78rem; color: #57534e; margin-top: 2px;">全自动路径规范化 · Emby 智能识别</div>
+                  </div>
+                  <div style="font-family: var(--font-code); font-size: 0.75rem; font-weight: 700; background: #e7e2d7; padding: 4px 8px; border-radius: 3px;">
+                    REV-2026.11
+                  </div>
+                </div>
+
+                <div class="craft-ruler-bar"></div>
+
+                <div class="craft-grid-2">
+                  <div class="craft-box">
+                    <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;font-weight:700;">
+                      <span class="craft-dot-pulse"></span>
+                      <span>网盘目录穿透与清洗引流...</span>
+                    </div>
+                    <div style="margin-top: 6px; font-size: 0.72rem; color: #78716c; font-family: var(--font-code);">
+                      FILTER: [advert.mp4, url.txt]
+                    </div>
+                  </div>
+
+                  <div class="craft-box">
+                    <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;font-weight:700;">
+                      <span style="display:inline-block;width:7px;height:7px;background:#111;border-radius:50%;"></span>
+                      <span>实时规划 Emby/Plex 规范命名...</span>
+                    </div>
+                    <div style="margin-top: 6px; font-size: 0.72rem; color: #78716c; font-family: var(--font-code);">
+                      SCHEMA: S{season}E{episode}
+                    </div>
+                  </div>
+                </div>
+
+                <div style="background: #e7e2d7; border: 1px solid #dcd7ce; border-radius: 4px; padding: 10px 12px; font-family: var(--font-code); font-size: 0.76rem; color: #44403c;">
+                  /nas/Media/Series/The.Penguin.2024.S01/ (智能结算中...)
+                </div>
+
+                <div class="craft-btn-row">
+                  <button class="craft-btn-prime">✦ 最佳方案生成中...</button>
+                  <button class="craft-btn-sec">+ 加入后台追更 (就绪)</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- 方案综合对比表格 -->
+    <h2 style="font-size: 1.25rem; font-weight: 800; color: #fff; margin-top: 48px; margin-bottom: 16px;">
+      📊 方案维度全景对比与选型指南
+    </h2>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>方案设计</th>
+          <th>视觉风格</th>
+          <th>科技感 / 酷炫度</th>
+          <th>与现有主站契合度</th>
+          <th>适用场景建议</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:#c084fc;">方案 1: Apple Intelligence 灵动光晕态</strong></td>
+          <td>现代磨砂极光 (Glassmorphism + Shimmer)</td>
+          <td><span class="badge-highlight">★★★★★ (顶级高级感)</span></td>
+          <td>极高 (通透现代，深浅自适应)</td>
+          <td><strong>强烈推荐</strong>。追求苹果、OpenAI 般现代、克制而又极致惊艳的质感。</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#00f2fe;">方案 2: 赛博流光矩阵 (Border Beam)</strong></td>
+          <td>暗黑极客终端 (Cyberpunk Neon)</td>
+          <td><span class="badge-highlight">★★★★★ (极强视觉冲击)</span></td>
+          <td>中高 (需深色卡片打底)</td>
+          <td>喜欢极客、代码流、黑客帝国硬核风格，希望一眼看出高算力运转。</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#38bdf8;">方案 3: 科幻 HUD 战术蓝图</strong></td>
+          <td>科幻雷达 / 战术全息控制台</td>
+          <td>★★★★☆ (硬核机能)</td>
+          <td>适合工程/媒体服务器场景</td>
+          <td>强调“严谨工程、蓝图架构、参数实时遥测”的用户群体。</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#f59e0b;">方案 4: 瑞士工匠纸质高定版</strong></td>
+          <td>瑞士国际主义制表风 (Neo-Brutalism + CAD)</td>
+          <td>★★★☆☆ (优雅耐看)</td>
+          <td>100% (直接无缝替换原有纸质框)</td>
+          <td>偏好原系统米色纸质风格，但希望去掉粗糙感、增加精工微阴影与呼吸感。</td>
+        </tr>
+      </tbody>
+    </table>
+
+  </div>
+
+  <div class="selection-toast">
+    <span style="font-size: 0.85rem; color: #cbd5e1;">💡 告诉助手您心仪的方案（如<strong>“选择方案 1”</strong>或<strong>“方案 2”</strong>），即可为您直接热替换到主站页面！</span>
+  </div>
+
+  <script>
+    let isFinishedState = false;
+
+    function toggleSimState() {
+      isFinishedState = !isFinishedState;
+      const indicator = document.getElementById('state-indicator');
+      const stateText = document.getElementById('state-text');
+      
+      if (isFinishedState) {
+        indicator.style.background = '#38bdf8';
+        stateText.innerText = '模拟：方案已生成 (就绪状态)';
+        
+        // 方案 1
+        const appleBtn = document.querySelector('.apple-btn-primary');
+        if (appleBtn) {
+          appleBtn.innerHTML = `<span>✓ 立即应用最佳刮削方案</span>`;
+          appleBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        }
+
+        // 方案 2
+        const cyberBtn = document.querySelector('.cyber-btn-main');
+        if (cyberBtn) {
+          cyberBtn.innerHTML = `<span>✓ 执行一键规范化转存 [就绪]</span>`;
+          cyberBtn.style.background = 'linear-gradient(90deg, #10b981, #047857)';
+        }
+
+        // 方案 3
+        const hudBtn = document.querySelector('.hud-btn-prime');
+        if (hudBtn) {
+          hudBtn.innerHTML = `<span>✔ DEPLOY BLUEPRINT [100%]</span>`;
+          hudBtn.style.background = '#059669';
+        }
+
+        // 方案 4
+        const craftBtn = document.querySelector('.craft-btn-prime');
+        if (craftBtn) {
+          craftBtn.innerHTML = `<span>✓ 应用落盘方案</span>`;
+          craftBtn.style.background = '#15803d';
+        }
+
+      } else {
+        indicator.style.background = '#10b981';
+        stateText.innerText = '模拟：AI 实时推演中';
+
+        // 恢复计算态
+        const appleBtn = document.querySelector('.apple-btn-primary');
+        if (appleBtn) {
+          appleBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span>最佳方案生成中 · 算力融合中...</span>
+          `;
+          appleBtn.style.background = 'linear-gradient(135deg, #3b82f6, #8b5cf6)';
+        }
+
+        const cyberBtn = document.querySelector('.cyber-btn-main');
+        if (cyberBtn) {
+          cyberBtn.innerHTML = `<span>⚡ 正在合成最优落盘指令...</span>`;
+          cyberBtn.style.background = 'linear-gradient(90deg, #0284c7, #0369a1)';
+        }
+
+        const hudBtn = document.querySelector('.hud-btn-prime');
+        if (hudBtn) {
+          hudBtn.innerHTML = `<span>◬ 执行蓝图计划 [计算中...]</span>`;
+          hudBtn.style.background = '#0369a1';
+        }
+
+        const craftBtn = document.querySelector('.craft-btn-prime');
+        if (craftBtn) {
+          craftBtn.innerHTML = `<span>✦ 最佳方案生成中...</span>`;
+          craftBtn.style.background = '#111110';
+        }
+      }
+    }
+
+    function scrollToScheme(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+  </script>
+</body>
+</html>

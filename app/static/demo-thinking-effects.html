@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto-Pilot 思考中炫酷动态方案对比</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card-bg: #181b24;
+      --card-border: #2a2e3d;
+      --text-main: #f0f3f6;
+      --text-sub: #8b949e;
+      --accent-blue: #38bdf8;
+      --accent-purple: #a855f7;
+      --accent-green: #34d399;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0b0d13;
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      padding: 2rem 1rem 4rem 1rem;
+    }
+    .header {
+      max-width: 900px;
+      margin: 0 auto 2rem auto;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #38bdf8, #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+    .header p {
+      color: var(--text-sub);
+      font-size: 0.9rem;
+    }
+    .tabs-row {
+      display: flex;
+      justify-content: center;
+      gap: 0.6rem;
+      margin: 1.5rem 0;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 0.55rem 1.1rem;
+      background: #181b24;
+      border: 1px solid var(--card-border);
+      color: var(--text-sub);
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #0284c7, #7c3aed);
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.35);
+    }
+
+    .stage {
+      max-width: 680px;
+      margin: 0 auto;
+      background: #161821;
+      border: 1px solid #2a2e3d;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      overflow: hidden;
+    }
+
+    /* TMDB 顶部还原 */
+    .mock-header {
+      position: relative;
+      height: 180px;
+      background: url('https://image.tmdb.org/t/p/w1280/8bCo6T0j4Dgnc1nNn6uYgG1R2xN.jpg') center/cover;
+      display: flex;
+      align-items: flex-end;
+      padding: 1.25rem;
+    }
+    .mock-header-mask {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(15,17,23,0.3) 0%, rgba(15,17,23,0.92) 100%);
+    }
+    .mock-header-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    .mock-poster {
+      width: 76px;
+      height: 114px;
+      border-radius: 6px;
+      border: 1.5px solid rgba(255,255,255,0.2);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+    .mock-info h2 {
+      font-size: 1.25rem;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .mock-info p {
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* 胶囊指示条 */
+    .capsule-box {
+      padding: 1rem 1.25rem 0.5rem 1.25rem;
+    }
+    .running-capsule {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0.45rem 0.95rem;
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
+    }
+    .sparkle {
+      width: 14px;
+      height: 14px;
+      animation: spin 2.5s infinite linear;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* 方案内容展示区 */
+    .scheme-view {
+      padding: 0.85rem 1.25rem 1.75rem 1.25rem;
+      display: none;
+    }
+    .scheme-view.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ========================================================
+       方案 1：AI 神经流光骨架屏 (Neural Shimmer Blueprint)
+       ======================================================== */
+    .skeleton-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px dashed rgba(56, 189, 248, 0.3);
+      border-radius: 8px;
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .skeleton-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -150%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.08), rgba(168, 85, 247, 0.12), transparent);
+      animation: sweep 2.2s infinite ease-in-out;
+    }
+    @keyframes sweep {
+      100% { left: 150%; }
+    }
+    .skel-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .skel-bar {
+      height: 18px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 4px;
+    }
+    .skel-title { width: 60%; height: 22px; }
+    .skel-badge { width: 18%; height: 22px; }
+    .skel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1.2rem;
+    }
+    .skel-box {
+      height: 72px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.04);
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .skel-pulse-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: #38bdf8;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #38bdf8;
+      animation: pulse 1.2s infinite ease;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(0.9); opacity: 0.6; }
+      50% { transform: scale(1.4); opacity: 1; }
+    }
+    .skel-btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .skel-btn {
+      height: 42px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.3);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* ========================================================
+       方案 2：量子雷达扫描波 + 探针全息 HUD (Quantum Radar)
+       ======================================================== */
+    .radar-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 8px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-height: 220px;
+      overflow: hidden;
+    }
+    .radar-ring {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 1.5px dashed rgba(56, 189, 248, 0.35);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: spin 10s infinite linear;
+    }
+    .radar-ring-inner {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .radar-core-icon {
+      width: 32px;
+      height: 32px;
+      color: #38bdf8;
+      animation: pulse 1.8s infinite ease;
+    }
+    .radar-beam {
+      position: absolute;
+      width: 70px;
+      height: 70px;
+      top: 0; right: 0;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.45) 0%, transparent 70%);
+      transform-origin: bottom left;
+      border-radius: 0 100% 0 0;
+    }
+    .radar-labels {
+      margin-top: 1rem;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .radar-tag {
+      font-size: 0.72rem;
+      font-family: monospace;
+      padding: 3px 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 4px;
+      color: #94a3b8;
+      animation: floatTag 2s infinite ease-in-out;
+    }
+    .radar-tag:nth-child(2) { animation-delay: 0.4s; color: #38bdf8; border-color: rgba(56,189,248,0.3); }
+    .radar-tag:nth-child(3) { animation-delay: 0.8s; color: #a855f7; border-color: rgba(168,85,247,0.3); }
+    @keyframes floatTag {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+
+    /* ========================================================
+       方案 3：Perplexity 式智能体动态探针芯片 (Agent Probe Chips)
+       ======================================================== */
+    .chips-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .chip-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      transition: all 0.3s ease;
+    }
+    .chip-item.active {
+      background: rgba(56, 189, 248, 0.05);
+      border-color: rgba(56, 189, 248, 0.35);
+      box-shadow: 0 2px 12px rgba(56, 189, 248, 0.08);
+    }
+    .chip-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .chip-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+    }
+    .chip-item.active .chip-icon {
+      background: #0284c7;
+      color: #fff;
+      box-shadow: 0 0 10px rgba(2, 132, 199, 0.6);
+    }
+    .chip-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+    .chip-sub {
+      font-size: 0.72rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .chip-status {
+      font-size: 0.72rem;
+      font-family: monospace;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .chip-spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(56, 189, 248, 0.3);
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      animation: spin 0.8s infinite linear;
+    }
+
+    .desc-box {
+      max-width: 680px;
+      margin: 1.5rem auto 0 auto;
+      background: #181b24;
+      border: 1px solid #2a2e3d;
+      border-radius: 8px;
+      padding: 1.25rem;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Auto-Pilot 思考中动态视觉方案对比</h1>
+    <p>告别推理过程中的大片空白与单调停滞感，赋予其现代 AI 大厂的高级流光与交互张力</p>
+
+    <div class="tabs-row">
+      <button class="tab-btn active" onclick="switchView('v1')">方案 1：AI 神经流光骨架屏 (Linear / Apple 风格)</button>
+      <button class="tab-btn" onclick="switchView('v2')">方案 2：全息量子雷达扫描 (赛博科技仪表风格)</button>
+      <button class="tab-btn" onclick="switchView('v3')">方案 3：Perplexity 动态探针芯片 (大厂流式感知)</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <!-- TMDB 头部 -->
+    <div class="mock-header">
+      <div class="mock-header-mask"></div>
+      <div class="mock-header-content">
+        <img class="mock-poster" src="https://image.tmdb.org/t/p/w500/8bCo6T0j4Dgnc1nNn6uYgG1R2xN.jpg" alt="海报">
+        <div class="mock-info">
+          <h2>星蝶公主 (2015)</h2>
+          <p>讲述了外星另一时空妙尼王国上的公主星蝶按传统于十四岁生日时继承家族传家宝物“皇家魔杖”，由于操控不善被安排到地球学习...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 方案 A 胶囊条 -->
+    <div class="capsule-box">
+      <div class="running-capsule">
+        <svg class="sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9 12 2"/>
+        </svg>
+        <span id="capsule-text">AI 正在进行 4K/HDR 画质规格与合规质检... (6.4s)</span>
+      </div>
+    </div>
+
+    <!-- 方案 1：AI 神经流光骨架屏 -->
+    <div class="scheme-view active" id="view-v1">
+      <div class="skeleton-card">
+        <div class="skel-header">
+          <div class="skel-bar skel-title"></div>
+          <div class="skel-bar skel-badge"></div>
+        </div>
+        <div class="skel-grid">
+          <div class="skel-box">
+            <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:#38bdf8;font-weight:700;">
+              <span class="skel-pulse-dot"></span>
+              <span>正在下探网盘目录树...</span>
+            </div>
+            <div class="skel-bar" style="width: 80%; height: 12px;"></div>
+          </div>
+          <div class="skel-box">
+            <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:#a855f7;font-weight:700;">
+              <span class="skel-pulse-dot" style="background:#a855f7;box-shadow:0 0 8px #a855f7;"></span>
+              <span>正在实时计算 Emby 命名...</span>
+            </div>
+            <div class="skel-bar" style="width: 70%; height: 12px;"></div>
+          </div>
+        </div>
+        <div style="margin-bottom:1rem;">
+          <div class="skel-bar" style="width:100%;height:32px;background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.1);display:flex;align-items:center;padding:0 12px;font-size:0.75rem;color:rgba(255,255,255,0.4);font-family:monospace;">
+            /nas/TV/星蝶公主 (2015)...
+          </div>
+        </div>
+        <div class="skel-btn-row">
+          <div class="skel-btn">✦ 方案生成中...</div>
+          <div class="skel-btn">+ 准备就绪</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 方案 2：全息量子雷达扫描 -->
+    <div class="scheme-view" id="view-v2">
+      <div class="radar-card">
+        <div class="radar-ring">
+          <div class="radar-beam"></div>
+          <div class="radar-ring-inner">
+            <svg class="radar-core-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
+        </div>
+        <div style="font-size:0.85rem;font-weight:700;color:#f1f5f9;margin-top:0.85rem;">全网夸克盘搜雷达深度声呐中</div>
+        <div style="font-size:0.74rem;color:#64748b;margin-top:2px;">实时过滤 140+ 广告死链 · 锁定 4K UHD 纯净正片</div>
+        <div class="radar-labels">
+          <span class="radar-tag">[4K REMUX]</span>
+          <span class="radar-tag">[杜比视界 DVIP]</span>
+          <span class="radar-tag">[穿透 0 层套娃]</span>
+          <span class="radar-tag">[评分 98 分]</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 方案 3：Perplexity 式智能体动态探针芯片 -->
+    <div class="scheme-view" id="view-v3">
+      <div class="chips-container">
+        <div class="chip-item">
+          <div class="chip-left">
+            <div class="chip-icon">1</div>
+            <div>
+              <div class="chip-title">盘搜引擎全网候选嗅探</div>
+              <div class="chip-sub">已向夸克聚合引擎发起并发检索</div>
+            </div>
+          </div>
+          <span class="chip-status" style="color:#34d399;">✓ 检出 121 个候选</span>
+        </div>
+
+        <div class="chip-item active">
+          <div class="chip-left">
+            <div class="chip-icon">2</div>
+            <div>
+              <div class="chip-title">画质规格质检与防引流</div>
+              <div class="chip-sub">甄别 4K UHD、杜比视界及连载完结度</div>
+            </div>
+          </div>
+          <span class="chip-status">
+            <span class="chip-spinner"></span>
+            <span>质检打分中</span>
+          </span>
+        </div>
+
+        <div class="chip-item">
+          <div class="chip-left">
+            <div class="chip-icon">3</div>
+            <div>
+              <div class="chip-title">目录树探针与穿透套娃</div>
+              <div class="chip-sub">探测分享树深度，隔离解压密码与广告文件</div>
+            </div>
+          </div>
+          <span class="chip-status" style="color:#64748b;">排队探查...</span>
+        </div>
+
+        <div class="chip-item">
+          <div class="chip-left">
+            <div class="chip-icon">4</div>
+            <div>
+              <div class="chip-title">Emby/Plex 标准命名闭环</div>
+              <div class="chip-sub">自动提取季集编号并规划落地存储路径</div>
+            </div>
+          </div>
+          <span class="chip-status" style="color:#64748b;">待闭环</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="desc-box" id="desc-box">
+    <strong>💡 方案 1 说明：</strong><br>
+    利用 <strong>AI 神经脉冲流光骨架屏（Neural Shimmer Skeleton）</strong>。在 AI 思考的 10 秒等待期，直接在下方呈现半透明的卡片预构蓝图。淡蓝与淡紫色的微光掠过，告知用户“落盘决策卡正在被 AI 逐行雕琢”，思考完成后无缝淡入成真卡，前后视觉完全连贯，高级感拉满。
+  </div>
+
+  <script>
+    function switchView(id) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.scheme-view').forEach(v => v.classList.remove('active'));
+      
+      const v = document.getElementById('view-' + id);
+      if (v) v.classList.add('active');
+
+      const desc = document.getElementById('desc-box');
+      if (id === 'v1') {
+        event.target.classList.add('active');
+        desc.innerHTML = `<strong>💡 方案 1（极力推荐）：AI 神经流光骨架屏 (Linear / Apple 风格)</strong><br>
+        在下方呈现半透明的决策大卡骨架蓝图，带有流光掠过动效与闪烁脉冲点。用户直观感知到“卡片正在底层被 AI 雕琢计算”，杜绝空白等待感，思考完成后无缝平滑淡入真卡。`;
+      } else if (id === 'v2') {
+        event.target.classList.add('active');
+        desc.innerHTML = `<strong>💡 方案 2：全息量子雷达扫描 (赛博科技仪表风格)</strong><br>
+        居中呈现一个高科技感旋转雷达波束，外圈刻度自转，核心闪烁脉冲，伴随实时飘动的动态浮签（如 [4K REMUX]、[评分 98] 等），极具极客范与科技仪式感！`;
+      } else if (id === 'v3') {
+        event.target.classList.add('active');
+        desc.innerHTML = `<strong>💡 方案 3：Perplexity 式智能体动态探针芯片</strong><br>
+        下方竖排呈现 4 枚流式芯片卡。随着 AI 思考推进，芯片逐个点亮并旋转微型 Spinner，显示实时进度（如检出 121 个源、质检打分中），信息透明，大厂范十足！`;
+      }
+    }
+  </script>
+</body>
+</html>
