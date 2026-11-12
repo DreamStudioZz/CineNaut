@@ -40,6 +40,13 @@ const state = {
   searchQuery: '',
   isSearchMode: false,
   searchSuggestions: [],
+  // 移动端全屏搜索
+  mobileSearchQuery: '',
+  mobileSearchItems: [],
+  mobileSearchFilter: 'all',
+  // 盘搜快速筛选
+  searchQuickFilter: 'all',
+  searchAiActive: false,
   browser: {
     baseShareUrl: '',
     currentUrl: '',
@@ -501,6 +508,361 @@ function clearGlobalSearchInput() {
   if (state.isSearchMode) {
     exitGlobalSearch(true);
   }
+}
+
+// ============================================================
+// 移动端全屏搜索（B）+ 结果列表化（C）
+// ============================================================
+const MOBILE_RECENT_KEY = 'cinenaut_recent_searches';
+const MOBILE_HOT_FALLBACK = ['庆余年', '默杀', '死侍与金刚狼', '头脑特工队2', '周处除三害', '繁花'];
+
+let mobileSearchTimer = null;
+let mobileSuggestToken = 0;
+let mobileResultsToken = 0;
+let mobileSuggestItems = [];
+let mobileResultItems = [];
+
+function readRecentSearches() {
+  try {
+    const raw = localStorage.getItem(MOBILE_RECENT_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list)
+      ? list.filter((q) => typeof q === 'string' && q.trim()).slice(0, 8)
+      : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveRecentSearch(query) {
+  const clean = String(query || '').trim();
+  if (!clean) return;
+  try {
+    const list = readRecentSearches().filter((q) => q !== clean);
+    list.unshift(clean);
+    localStorage.setItem(MOBILE_RECENT_KEY, JSON.stringify(list.slice(0, 8)));
+  } catch (e) {}
+}
+
+function renderMobileRecent() {
+  const wrap = document.getElementById('mobile-recent-wrap');
+  const box = document.getElementById('mobile-recent-chips');
+  if (!wrap || !box) return;
+  const list = readRecentSearches();
+  if (!list.length) {
+    wrap.hidden = true;
+    box.innerHTML = '';
+    return;
+  }
+  wrap.hidden = false;
+  box.innerHTML = list
+    .map((q) => `<button type="button" class="mobile-search-chip" data-mquery="${escapeHtml(q)}">${escapeHtml(q)}</button>`)
+    .join('');
+}
+
+function renderMobileHot() {
+  const wrap = document.getElementById('mobile-hot-wrap');
+  const box = document.getElementById('mobile-hot-chips');
+  if (!wrap || !box) return;
+  let list = (state.items || []).slice(0, 6).map((it) => it.title).filter(Boolean);
+  if (!list.length) list = MOBILE_HOT_FALLBACK.slice();
+  box.innerHTML = list
+    .map((q) => `<button type="button" class="mobile-search-chip" data-mquery="${escapeHtml(q)}">${escapeHtml(q)}</button>`)
+    .join('');
+}
+
+function showMobileSuggestState() {
+  const suggest = document.getElementById('mobile-search-suggest');
+  const results = document.getElementById('mobile-search-results');
+  const sugWrap = document.getElementById('mobile-suggest-wrap');
+  const allBtn = document.getElementById('mobile-search-all');
+  const body = document.querySelector('.mobile-search-body');
+  if (suggest) suggest.hidden = false;
+  if (results) results.hidden = true;
+  if (sugWrap) sugWrap.hidden = true;
+  if (allBtn) allBtn.hidden = true;
+  if (body) body.scrollTop = 0;
+  renderMobileRecent();
+  renderMobileHot();
+}
+
+function openMobileSearch() {
+  const overlay = document.getElementById('mobile-search-overlay');
+  const input = document.getElementById('mobile-search-input');
+  const clearBtn = document.getElementById('mobile-search-clear');
+  if (!overlay) return;
+  state.mobileSearchQuery = '';
+  state.mobileSearchItems = [];
+  state.mobileSearchFilter = 'all';
+  clearTimeout(mobileSearchTimer);
+  if (input) input.value = '';
+  if (clearBtn) clearBtn.hidden = true;
+  showMobileSuggestState();
+  overlay.hidden = false;
+  document.body.style.overflow = 'hidden';
+  if (input) input.focus();
+}
+
+function closeMobileSearch() {
+  const overlay = document.getElementById('mobile-search-overlay');
+  const input = document.getElementById('mobile-search-input');
+  if (overlay) overlay.hidden = true;
+  if (input) input.blur();
+  clearTimeout(mobileSearchTimer);
+  document.body.style.overflow = '';
+  mobileSuggestToken += 1;
+  mobileResultsToken += 1;
+}
+
+function clearMobileSearchInput() {
+  const input = document.getElementById('mobile-search-input');
+  const clearBtn = document.getElementById('mobile-search-clear');
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+  if (clearBtn) clearBtn.hidden = true;
+  mobileSuggestToken += 1;
+  showMobileSuggestState();
+}
+
+function onMobileSearchInput() {
+  const input = document.getElementById('mobile-search-input');
+  const clearBtn = document.getElementById('mobile-search-clear');
+  const q = input ? input.value.trim() : '';
+  if (clearBtn) clearBtn.hidden = !q;
+  clearTimeout(mobileSearchTimer);
+
+  // 从结果态继续编辑时，回到联想态
+  const results = document.getElementById('mobile-search-results');
+  const suggest = document.getElementById('mobile-search-suggest');
+  if (results && !results.hidden) {
+    results.hidden = true;
+    if (suggest) suggest.hidden = false;
+  }
+
+  if (!q) {
+    mobileSuggestToken += 1;
+    showMobileSuggestState();
+    return;
+  }
+  mobileSearchTimer = setTimeout(() => fetchMobileSuggestions(q), 280);
+}
+
+async function fetchMobileSuggestions(query) {
+  const token = ++mobileSuggestToken;
+  const sugWrap = document.getElementById('mobile-suggest-wrap');
+  const list = document.getElementById('mobile-suggest-list');
+  const allBtn = document.getElementById('mobile-search-all');
+  const recent = document.getElementById('mobile-recent-wrap');
+  const hot = document.getElementById('mobile-hot-wrap');
+  if (recent) recent.hidden = true;
+  if (hot) hot.hidden = true;
+  if (sugWrap) sugWrap.hidden = false;
+  if (allBtn) allBtn.hidden = true;
+  if (list) list.innerHTML = '<div class="mobile-search-empty">正在搜索…</div>';
+
+  try {
+    const res = await fetch(`/api/tmdb/search?query=${encodeURIComponent(query)}&page=1`);
+    const data = await res.json();
+    if (token !== mobileSuggestToken) return;
+    if (data.error) {
+      if (list) list.innerHTML = `<div class="mobile-search-empty">${escapeHtml(data.error)}</div>`;
+      return;
+    }
+    const items = data.items || [];
+    renderMobileSuggestions(items.slice(0, 6), data.total_results || items.length);
+  } catch (err) {
+    if (token !== mobileSuggestToken) return;
+    if (list) list.innerHTML = `<div class="mobile-search-empty">搜索异常：${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderMobileSuggestions(items, total) {
+  const list = document.getElementById('mobile-suggest-list');
+  const allBtn = document.getElementById('mobile-search-all');
+  if (!list) return;
+  if (!items.length) {
+    list.innerHTML = '<div class="mobile-search-empty">未找到相关影视作品</div>';
+    if (allBtn) allBtn.hidden = true;
+    return;
+  }
+  mobileSuggestItems = items;
+  list.innerHTML = items
+    .map((item, idx) => {
+      const poster = item.poster_url
+        ? `<img class="mobile-sug-poster" src="${escapeHtml(item.poster_url)}" alt="" loading="lazy">`
+        : '<div class="mobile-sug-poster"></div>';
+      const meta = `${item.year || '未知'} · ${item.genres || '影视'}`;
+      const rating = item.rating > 0 ? `<span class="mobile-sug-rating">★ ${item.rating}</span>` : '';
+      return `<div class="mobile-sug-row" data-midx="${idx}">
+        ${poster}
+        <div class="mobile-sug-info">
+          <div class="mobile-sug-title">${escapeHtml(item.title)}</div>
+          <div class="mobile-sug-meta">${escapeHtml(meta)}</div>
+        </div>
+        ${rating}
+      </div>`;
+    })
+    .join('');
+  if (allBtn) {
+    allBtn.hidden = false;
+    allBtn.textContent = `查看全部 ${total} 条结果 →`;
+  }
+}
+
+async function submitMobileSearch() {
+  const input = document.getElementById('mobile-search-input');
+  const clearBtn = document.getElementById('mobile-search-clear');
+  const query = input ? input.value.trim() : '';
+  if (!query) return;
+
+  saveRecentSearch(query);
+  state.mobileSearchQuery = query;
+  state.mobileSearchFilter = 'all';
+  clearTimeout(mobileSearchTimer);
+  if (clearBtn) clearBtn.hidden = false;
+  if (input) input.blur();
+
+  const suggest = document.getElementById('mobile-search-suggest');
+  const results = document.getElementById('mobile-search-results');
+  const list = document.getElementById('mobile-results-list');
+  const meta = document.getElementById('mobile-results-meta');
+  const body = document.querySelector('.mobile-search-body');
+  if (suggest) suggest.hidden = true;
+  if (results) results.hidden = false;
+  if (body) body.scrollTop = 0;
+  if (list) list.innerHTML = `<div class="mobile-search-empty">正在检索《${escapeHtml(query)}》…</div>`;
+  if (meta) meta.textContent = '正在检索…';
+
+  const token = ++mobileResultsToken;
+  try {
+    const res = await fetch(`/api/tmdb/search?query=${encodeURIComponent(query)}&page=1`);
+    const data = await res.json();
+    if (token !== mobileResultsToken) return;
+    if (data.error) {
+      if (list) list.innerHTML = `<div class="mobile-search-empty">${escapeHtml(data.error)}</div>`;
+      if (meta) meta.textContent = '';
+      return;
+    }
+    state.mobileSearchItems = data.items || [];
+    renderMobileResults();
+  } catch (err) {
+    if (token !== mobileResultsToken) return;
+    if (list) list.innerHTML = `<div class="mobile-search-empty">搜索异常：${escapeHtml(err.message)}</div>`;
+    if (meta) meta.textContent = '';
+  }
+}
+
+function mobileFilterMatch(item, filter) {
+  if (filter === 'movie') return item.media_type === 'movie';
+  if (filter === 'tv') return item.media_type === 'tv';
+  if (filter === 'anime') return String(item.genres || '').includes('动画');
+  return true;
+}
+
+function renderMobileResults() {
+  const list = document.getElementById('mobile-results-list');
+  const meta = document.getElementById('mobile-results-meta');
+  const filters = document.getElementById('mobile-results-filters');
+  if (!list) return;
+
+  const all = state.mobileSearchItems || [];
+  const filtered = all.filter((it) => mobileFilterMatch(it, state.mobileSearchFilter));
+  if (meta) meta.textContent = `关键词 “${state.mobileSearchQuery}” · 共 ${filtered.length} 部`;
+  if (filters) {
+    filters.querySelectorAll('[data-mfilter]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.mfilter === state.mobileSearchFilter);
+    });
+  }
+
+  if (!filtered.length) {
+    mobileResultItems = [];
+    list.innerHTML = '<div class="mobile-search-empty">该筛选下没有结果，换个分类试试。</div>';
+    return;
+  }
+
+  mobileResultItems = filtered;
+  list.innerHTML = filtered
+    .map((item, idx) => {
+      const poster = item.poster_url
+        ? `<img class="mobile-result-poster" src="${escapeHtml(item.poster_url)}" alt="" loading="lazy">`
+        : '<div class="mobile-result-poster"></div>';
+      const typeLabel = item.media_type === 'tv' ? '剧集' : '电影';
+      const rating = item.rating > 0 ? `★ ${item.rating}` : '★ 暂无';
+      return `<div class="mobile-result-row" data-mridx="${idx}">
+        ${poster}
+        <div class="mobile-result-main">
+          <div class="mobile-result-title">${escapeHtml(item.title)}</div>
+          <div class="mobile-result-meta">${escapeHtml(item.year || '未知')} · ${escapeHtml(item.genres || typeLabel)}<br>${rating} · ${typeLabel}</div>
+        </div>
+        <button type="button" class="mobile-result-cta">转存</button>
+      </div>`;
+    })
+    .join('');
+}
+
+function initMobileSearch() {
+  const overlay = document.getElementById('mobile-search-overlay');
+  const input = document.getElementById('mobile-search-input');
+  if (!overlay || !input) return;
+
+  input.addEventListener('input', onMobileSearchInput);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitMobileSearch();
+    }
+  });
+
+  const suggestList = document.getElementById('mobile-suggest-list');
+  if (suggestList) {
+    suggestList.addEventListener('click', (e) => {
+      const row = e.target.closest('[data-midx]');
+      if (!row) return;
+      const item = mobileSuggestItems[Number(row.dataset.midx)];
+      if (!item) return;
+      closeMobileSearch();
+      openTransferModal(item);
+    });
+  }
+
+  const resultsList = document.getElementById('mobile-results-list');
+  if (resultsList) {
+    resultsList.addEventListener('click', (e) => {
+      const row = e.target.closest('[data-mridx]');
+      if (!row) return;
+      const item = mobileResultItems[Number(row.dataset.mridx)];
+      if (!item) return;
+      closeMobileSearch();
+      openTransferModal(item);
+    });
+  }
+
+  const filters = document.getElementById('mobile-results-filters');
+  if (filters) {
+    filters.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-mfilter]');
+      if (!btn) return;
+      state.mobileSearchFilter = btn.dataset.mfilter;
+      renderMobileResults();
+    });
+  }
+
+  ['mobile-recent-chips', 'mobile-hot-chips'].forEach((id) => {
+    const box = document.getElementById(id);
+    if (!box) return;
+    box.addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-mquery]');
+      if (!chip) return;
+      if (input) input.value = chip.dataset.mquery;
+      submitMobileSearch();
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overlay.hidden) closeMobileSearch();
+  });
 }
 
 // 加载影视发现数据
@@ -1090,7 +1452,7 @@ function renderPilotDecisionCard() {
 
   let tagsHtml = '';
   if (best.ai_tags && best.ai_tags.length > 0) {
-    tagsHtml = best.ai_tags.map(t => '<span class="ai-tag ai-tag-quality">' + t + '</span>').join(' ');
+    tagsHtml = best.ai_tags.map(t => '<span class="ai-tag ai-tag-quality">' + escapeHtml(t) + '</span>').join(' ');
   } else {
     tagsHtml = '<span class="ai-tag ai-tag-best">智能置顶首推</span> <span class="ai-tag ai-tag-quality">优质画质</span>';
   }
@@ -1117,14 +1479,14 @@ function renderPilotDecisionCard() {
           '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>' +
           '分享链接来源' +
         '</span>' +
-        '<div class="pilot-path-badge" title="' + best.shareurl + '">' + best.shareurl + '</div>' +
+        '<div class="pilot-path-badge" title="' + escapeHtml(best.shareurl) + '">' + escapeHtml(best.shareurl) + '</div>' +
       '</div>' +
       '<div class="pilot-preview-box">' +
         '<span class="pilot-section-title">' +
           '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
           '目标网盘保存路径' +
         '</span>' +
-        '<div class="pilot-path-badge" title="' + savePath + '">' + savePath + '</div>' +
+        '<div class="pilot-path-badge" title="' + escapeHtml(savePath) + '">' + escapeHtml(savePath) + '</div>' +
       '</div>' +
     '</div>' +
     '<div class="pilot-action-row">' +
@@ -1156,6 +1518,8 @@ async function openTransferModal(itemOrIndex) {
   state.drawerFilter = 'all';
   state.drawerSort = 'score';
   state.drawerItems = [];
+  state.searchQuickFilter = 'all';
+  document.querySelectorAll('[data-result-filter]').forEach((btn) => btn.classList.remove('active'));
 
   // 清空上一次搜索的结果 DOM，避免切到手动面板时看到上一部影片的列表
   const searchResults = document.getElementById('modal-search-results');
@@ -1252,12 +1616,34 @@ function closeTransferModal() {
   state.currentMedia = null;
 }
 
+// 盘搜结果的快速筛选（仅 4K / 全集）
+function filterCandidatesByQuick(items) {
+  const filter = state.searchQuickFilter;
+  if (!filter || filter === 'all') return items;
+  return items.filter((it) => {
+    const hay = `${(it.ai_tags || []).join(' ')} ${it.taskname || ''} ${it.content || ''}`;
+    if (filter === '4k') return /4K|2160|UHD/i.test(hay);
+    if (filter === 'complete') return /全集|完结|全\d+集|全季/i.test(hay);
+    return true;
+  });
+}
+
 // 渲染夸克盘搜结果列表
 function renderSearchResultsList(items, isAiActive) {
   const resultsContainer = document.getElementById('modal-search-results');
   if (!resultsContainer) return;
 
+  items = filterCandidatesByQuick(items || []);
+
   if (!items || items.length === 0) {
+    if (state.searchQuickFilter !== 'all' && (state.searchCandidates || []).length > 0) {
+      resultsContainer.innerHTML = `
+        <div style="padding:1.5rem;text-align:center;font-size:0.82rem;color:var(--cg-ink-3);">
+          当前筛选下没有结果，点击上方「仅 4K / 全集」可取消筛选。
+        </div>
+      `;
+      return;
+    }
     resultsContainer.innerHTML = `
       <div style="padding:1.5rem;text-align:center;font-size:0.82rem;color:var(--cg-ink-3);">
         未检索到相关的夸克网盘资源，可勾选【深度搜索】重新检索或手动输入分享链接。
@@ -1271,7 +1657,7 @@ function renderSearchResultsList(items, isAiActive) {
   const itemsHtml = items
     .slice(0, initialVisibleCount)
     .map((item, idx) => {
-      const timeStr = item.datetime ? `• 更新时间: ${item.datetime}` : '';
+      const timeStr = item.datetime ? `• 更新时间: ${escapeHtml(item.datetime)}` : '';
       const safeTitle = (item.taskname || '夸克资源').replace(/'/g, "\\'");
 
       const isRecommended = isAiActive && Boolean(item.is_recommended);
@@ -1292,7 +1678,7 @@ function renderSearchResultsList(items, isAiActive) {
           } else if (tag.includes('4K') || tag.includes('杜比') || tag.includes('原盘') || tag.includes('完结')) {
             tagClass = 'ai-tag-quality';
           }
-          return `<span class="ai-tag ${tagClass}">${iconSvg}${tag}</span>`;
+          return `<span class="ai-tag ${tagClass}">${iconSvg}${escapeHtml(tag)}</span>`;
         }).join('');
         const scorePill = item.ai_score ? `<span class="ai-tag ai-tag-default" style="font-family:var(--font-mono);">${item.ai_score}分</span>` : '';
         tagsHtml = `<div class="search-tag-group">${pills}${scorePill}</div>`;
@@ -1300,7 +1686,7 @@ function renderSearchResultsList(items, isAiActive) {
 
       // AI 评语
       const reasonHtml = (isAiActive && item.ai_reason)
-        ? `<div class="ai-reason-text"><span style="opacity:0.45;font-family:var(--font-mono);font-size:0.68rem;margin-right:3px;">›</span>${item.ai_reason}</div>`
+        ? `<div class="ai-reason-text"><span style="opacity:0.45;font-family:var(--font-mono);font-size:0.68rem;margin-right:3px;">›</span>${escapeHtml(item.ai_reason)}</div>`
         : '';
 
       const itemClasses = [
@@ -1312,21 +1698,21 @@ function renderSearchResultsList(items, isAiActive) {
       // 只要全局启用了 AI，无论搜索时是否勾选“AI质检”，卡片上始终展示“AI透视”按钮（两者互不影响）
       const isGlobalAiEnabled = Boolean(state.config && state.config.llm_enabled !== false);
       const aiBtnHtml = isGlobalAiEnabled
-        ? `<button type="button" class="btn btn-inline-insight" id="btn-insight-${idx}" style="padding:0.18rem 0.5rem;font-size:0.72rem;" onclick="event.stopPropagation(); openAiInsightModal(${idx})">AI透视</button>`
+        ? `<button type="button" class="btn btn-inline-insight" id="btn-insight-${idx}" style="padding:0.18rem 0.5rem;font-size:0.72rem;" data-insight-idx="${idx}">AI透视</button>`
         : '';
 
       return `
       <div class="${itemClasses}" id="search-item-${idx}" data-shareurl="${escapeHtml(item.shareurl)}">
-        <div class="search-item-top-row" onclick="selectSearchResource('${item.shareurl}', this.closest('.search-item'))">
+        <div class="search-item-top-row" data-select-shareurl="${escapeHtml(item.shareurl)}">
           <div class="search-item-main" style="flex:1; min-width:0; overflow:hidden;">
             ${tagsHtml}
             <div class="search-item-title">${sanitizeCleanTitle(item.taskname)}</div>
             ${reasonHtml}
-            <div class="search-item-sub">${item.shareurl} ${timeStr}</div>
+            <div class="search-item-sub">${escapeHtml(item.shareurl)} ${timeStr}</div>
           </div>
           <div class="search-item-actions">
             ${aiBtnHtml}
-            <button type="button" class="btn search-item-btn" onclick="event.stopPropagation(); selectSearchResource('${item.shareurl}', this.closest('.search-item'))">选用链接</button>
+            <button type="button" class="btn search-item-btn search-item-select">选用链接</button>
           </div>
         </div>
       </div>
@@ -1345,6 +1731,17 @@ function renderSearchResultsList(items, isAiActive) {
 
   resultsContainer.innerHTML = itemsHtml + toggleHtml;
 
+  // 事件委托：避免把分享链接拼进内联 onclick
+  resultsContainer.onclick = (e) => {
+    const insightBtn = e.target.closest('[data-insight-idx]');
+    if (insightBtn) {
+      openAiInsightModal(Number(insightBtn.dataset.insightIdx));
+      return;
+    }
+    const row = e.target.closest('[data-select-shareurl]');
+    if (row) selectSearchResource(row.dataset.selectShareurl, row.closest('.search-item'));
+  };
+
   // 抽屉打开时同步刷新（例如 AI 精审结果返回）
   const drawer = document.getElementById('results-drawer-backdrop');
   if (drawer && drawer.classList.contains('active')) {
@@ -1360,6 +1757,26 @@ function renderSearchResultsList(items, isAiActive) {
   }
 }
 
+// 盘搜快速筛选：仅 4K / 全集
+function initManualSearchFilters() {
+  const bar = document.querySelector('.modal-search-filters');
+  if (!bar) return;
+  bar.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-result-filter]');
+    if (!btn) return;
+    const searchBtn = document.getElementById('modal-search-btn');
+    if (searchBtn && searchBtn.disabled) return;
+    const value = btn.dataset.resultFilter;
+    state.searchQuickFilter = state.searchQuickFilter === value ? 'all' : value;
+    bar.querySelectorAll('[data-result-filter]').forEach((b) => {
+      b.classList.toggle('active', b.dataset.resultFilter === state.searchQuickFilter);
+    });
+    renderSearchResultsList(state.searchCandidates, state.searchAiActive);
+    const drawer = document.getElementById('results-drawer-backdrop');
+    if (drawer && drawer.classList.contains('active')) renderResultsDrawer();
+  });
+}
+
 // 检索夸克分享资源 (秒级首屏 + 异步 LLM 深度精审)
 async function searchModalResources() {
   const kw = document.getElementById('modal-search-kw').value.trim();
@@ -1370,6 +1787,8 @@ async function searchModalResources() {
   closeResultsDrawer();
   state.drawerFilter = 'all';
   state.drawerSort = 'score';
+  state.searchQuickFilter = 'all';
+  document.querySelectorAll('[data-result-filter]').forEach((btn) => btn.classList.remove('active'));
   const deep = document.getElementById('modal-deep-search').checked;
   const aiRank = document.getElementById('modal-ai-rank') ? document.getElementById('modal-ai-rank').checked : true;
   const btn = document.getElementById('modal-search-btn');
@@ -1380,6 +1799,8 @@ async function searchModalResources() {
 
   btn.disabled = true;
   btn.innerText = '检索中...';
+  const kwInput = document.getElementById('modal-search-kw');
+  if (kwInput && window.innerWidth <= 768) kwInput.blur();
   resultsContainer.innerHTML = '<div style="padding:1.5rem;text-align:center;font-size:0.82rem;color:var(--cg-ink-3);">全网检索夸克网盘资源中，请稍候...</div>';
   state.searchingResources = true;
   if (!state.transferMode || state.transferMode === 'pilot') renderPilotDecisionCard();
@@ -1401,6 +1822,7 @@ async function searchModalResources() {
     state.searchCandidates = data.items || [];
 
     const isAiActive = aiRank && data.evaluator !== 'off';
+    state.searchAiActive = isAiActive;
 
     // 1. 毫秒级首屏渲染 (用户瞬间看到精准的画质与防引流分类结果)
     renderSearchResultsList(state.searchCandidates, isAiActive);
@@ -1451,8 +1873,9 @@ async function searchModalResources() {
       }
     }
   } catch (err) {
-    resultsContainer.innerHTML = `<div style="padding:1.2rem;text-align:center;font-size:0.82rem;color:var(--cg-danger);">检索异常: ${err.message}</div>`;
+    resultsContainer.innerHTML = `<div style="padding:1.2rem;text-align:center;font-size:0.82rem;color:var(--cg-danger);">检索异常: ${escapeHtml(err.message)}</div>`;
   } finally {
+    state.searchingResources = false;
     btn.disabled = false;
     btn.innerText = '检索资源';
   }
@@ -1492,7 +1915,7 @@ function renderResultsDrawer() {
   const count = document.getElementById('results-drawer-count');
   if (!list) return;
 
-  const all = state.searchCandidates || [];
+  const all = filterCandidatesByQuick(state.searchCandidates || []);
   const filter = state.drawerFilter || 'all';
   const sort = state.drawerSort || 'score';
 
@@ -1516,7 +1939,7 @@ function renderResultsDrawer() {
         if (tag.includes('推荐') || tag.includes('优选')) cls = 'ai-tag-best';
         else if (tag.includes('广告') || tag.includes('引流') || tag.includes('枪版')) cls = 'ai-tag-spam';
         else if (tag.includes('4K') || tag.includes('杜比') || tag.includes('原盘') || tag.includes('完结') || tag.includes('1080')) cls = 'ai-tag-quality';
-        return `<span class="ai-tag ${cls}">${tag}</span>`;
+        return `<span class="ai-tag ${cls}">${escapeHtml(tag)}</span>`;
       }).join('');
       const score = item.ai_score ? `<span class="ai-tag ai-tag-default">${item.ai_score}分</span>` : '';
       const selected = currentUrl && item.shareurl === currentUrl ? ' selected' : '';
@@ -2310,7 +2733,7 @@ async function loadTasks(forceToast = false) {
       container.innerHTML = `
         <div class="state-box">
           <div class="state-title" style="color:var(--cg-danger);">无法拉取任务</div>
-          <div class="state-desc">${data.message || '请确认转存服务是否正常运行与 Token 是否有效'}</div>
+          <div class="state-desc">${escapeHtml(data.message || '请确认转存服务是否正常运行与 Token 是否有效')}</div>
           <button type="button" class="btn btn-primary" onclick="switchTab('settings')">前往检查系统配置</button>
         </div>
       `;
@@ -2334,33 +2757,33 @@ async function loadTasks(forceToast = false) {
       .map((t) => {
         const isBanned = Boolean(t.shareurl_ban);
         const statusBadge = isBanned
-          ? `<span class="task-badge-ban" title="${t.shareurl_ban}">链接失效</span>`
+          ? `<span class="task-badge-ban" title="${escapeHtml(t.shareurl_ban || '')}">链接失效</span>`
           : '<span class="task-badge-ok">正常运行</span>';
 
         return `
-        <tr data-taskname="${encodeURIComponent(t.taskname)}">
+        <tr data-taskname="${encodeURIComponent(t.taskname || '')}">
           <td class="task-col-check">
-            <input type="checkbox" class="task-checkbox" value="${t.taskname}" onchange="updateSelectedTasksCount()">
+            <input type="checkbox" class="task-checkbox" value="${escapeHtml(t.taskname || '')}" onchange="updateSelectedTasksCount()">
           </td>
           <td class="task-col-main">
-            <div class="task-name">${t.taskname || '未命名'}</div>
-            <div class="task-url" title="${t.shareurl || ''}">${t.shareurl || ''}</div>
+            <div class="task-name">${escapeHtml(t.taskname || '未命名')}</div>
+            <div class="task-url" title="${escapeHtml(t.shareurl || '')}">${escapeHtml(t.shareurl || '')}</div>
           </td>
           <td class="task-col-path">
             <span class="cell-label">保存路径:</span>
-            <span class="cell-val">${t.savepath || '/'}</span>
+            <span class="cell-val">${escapeHtml(t.savepath || '/')}</span>
           </td>
           <td class="task-col-rule">
             <span class="cell-label">匹配规则:</span>
-            <span class="cell-val">${t.pattern || '.*'}</span>
+            <span class="cell-val">${escapeHtml(t.pattern || '.*')}</span>
           </td>
           <td class="task-col-status">
             ${statusBadge}
           </td>
           <td class="task-col-actions">
             <div class="task-btn-group">
-              <button type="button" class="btn" style="padding:0.25rem 0.55rem;font-size:0.75rem;" onclick="runSingleTask('${t.taskname}', this)">运行</button>
-              <button type="button" class="btn" style="padding:0.25rem 0.55rem;font-size:0.75rem;color:var(--cg-danger);" onclick="deleteQasTask('${t.taskname}', this)">删除</button>
+              <button type="button" class="btn" style="padding:0.25rem 0.55rem;font-size:0.75rem;" data-task-action="run">运行</button>
+              <button type="button" class="btn" style="padding:0.25rem 0.55rem;font-size:0.75rem;color:var(--cg-danger);" data-task-action="delete">删除</button>
             </div>
           </td>
         </tr>
@@ -2395,10 +2818,24 @@ async function loadTasks(forceToast = false) {
       </div>
     `;
 
+    // 事件委托：任务名可能含单引号等字符，不能再拼进内联 onclick
+    container.onclick = (e) => {
+      const btn = e.target.closest('[data-task-action]');
+      if (!btn) return;
+      const tr = btn.closest('tr');
+      const taskname = tr ? decodeURIComponent(tr.dataset.taskname || '') : '';
+      if (!taskname) return;
+      if (btn.dataset.taskAction === 'run') {
+        runSingleTask(taskname, btn);
+      } else if (btn.dataset.taskAction === 'delete') {
+        deleteQasTask(taskname, btn);
+      }
+    };
+
     updateSelectedTasksCount();
     if (forceToast) showToast(`成功同步 ${state.tasks.length} 个转存任务`);
   } catch (err) {
-    container.innerHTML = `<div class="state-box"><div class="state-title" style="color:var(--cg-danger);">加载失败: ${err.message}</div></div>`;
+    container.innerHTML = `<div class="state-box"><div class="state-title" style="color:var(--cg-danger);">加载失败: ${escapeHtml(err.message)}</div></div>`;
   }
 }
 
@@ -3159,6 +3596,8 @@ function initSettingsRulerRail() {
 document.addEventListener('DOMContentLoaded', () => {
   initSettingsRulerRail();
   initGlobalSearch();
+  initMobileSearch();
+  initManualSearchFilters();
   document.getElementById('menu-toggle-btn')?.addEventListener('click', openSidebar);
   document.getElementById('sidebar-close-btn')?.addEventListener('click', closeSidebar);
   document.getElementById('sidebar-backdrop')?.addEventListener('click', closeSidebar);

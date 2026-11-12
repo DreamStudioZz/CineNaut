@@ -3,9 +3,11 @@ import json
 import re
 import time
 import urllib.parse
+from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Dict, List, Optional
 import httpx
 from app.core.config import get_config
+from app.core.http_clients import get_qas_client
 
 VIDEO_EXTS = {
     ".mp4", ".mkv", ".avi", ".mov", ".flv", ".ts",
@@ -20,6 +22,23 @@ TREE_CACHE_TTL = 120  # 秒
 # 盘搜结果短时缓存：上游 PanSou/CloudSaver 聚合常需 10~25 秒，重复打开同一影片直接复用
 _SEARCH_CACHE: Dict[str, tuple[float, List[Dict[str, Any]]]] = {}
 SEARCH_CACHE_TTL = 300  # 秒
+
+CACHE_MAX_SIZE = 200
+
+
+def _cache_set(cache: Dict[str, Any], key: str, value: Any, ttl: float) -> None:
+    """写入缓存并按 TTL / 最大条目数淘汰，避免长期运行内存无限增长。"""
+    now = time.time()
+    cache[key] = (now, value)
+    if len(cache) <= CACHE_MAX_SIZE:
+        return
+    for k, (ts, _) in list(cache.items()):
+        if now - ts >= ttl:
+            cache.pop(k, None)
+    overflow = len(cache) - CACHE_MAX_SIZE
+    if overflow > 0:
+        for k, _ in sorted(cache.items(), key=lambda kv: kv[1][0])[:overflow]:
+            cache.pop(k, None)
 
 
 def parse_season_number(text: str) -> Optional[str]:
@@ -49,9 +68,10 @@ def extract_pwd_id(url: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
-def _get_http_client() -> httpx.AsyncClient:
-    # QAS 服务通常部署在本地或局域网容器内，直连无需代理 (trust_env=False 防止环境变量代理干扰)
-    return httpx.AsyncClient(timeout=30.0, follow_redirects=True, trust_env=False)
+@asynccontextmanager
+async def _use_http_client():
+    """复用共享的 QAS 连接池；退出上下文时不关闭 client。"""
+    yield await get_qas_client()
 
 
 def _build_url(endpoint: str, params: Optional[Dict[str, Any]] = None) -> str:
@@ -78,7 +98,7 @@ async def verify_qas_connection() -> Dict[str, Any]:
     url = _build_url("/data")
     start_time = time.time()
     try:
-        async with _get_http_client() as client:
+        async with _use_http_client() as client:
             resp = await client.get(url)
             latency = int((time.time() - start_time) * 1000)
 
@@ -125,7 +145,7 @@ async def verify_qas_connection() -> Dict[str, Any]:
 
 async def _search_once(query: str, deep: bool, timeout: float) -> List[Dict[str, Any]]:
     url = _build_url("/task_suggestions", {"q": query, "d": "1" if deep else "0"})
-    async with _get_http_client() as client:
+    async with _use_http_client() as client:
         # wait_for 强制墙钟超时：上游偶发慢速吐流，仅靠 httpx 的 read timeout 会拖到 50s+
         resp = await asyncio.wait_for(client.get(url, timeout=timeout), timeout=timeout)
         if resp.status_code != 200:
@@ -155,7 +175,7 @@ async def search_resources(query: str, deep: bool = False) -> List[Dict[str, Any
             results = []
 
         if results:
-            _SEARCH_CACHE[cache_key] = (time.time(), results)
+            _cache_set(_SEARCH_CACHE, cache_key, results, SEARCH_CACHE_TTL)
             return results
 
         # 慢失败（含超时）不重试，避免把 30s 翻倍；只有快速失败才补一次
@@ -194,7 +214,7 @@ async def get_share_detail(
         payload["task"] = task_copy
 
     try:
-        async with _get_http_client() as client:
+        async with _use_http_client() as client:
             resp = await client.post(url, json=payload, timeout=timeout)
             if resp.status_code == 200:
                 return resp.json()
@@ -238,21 +258,26 @@ async def explore_share_tree(
 
     targets: List[Dict[str, Any]] = []
 
-    # 检查根目录下是否直接有视频或压缩包
+    # 检查根目录下是否直接有视频或压缩包（分开计数，压缩包不算有效视频）
     root_videos = [
         f for f in root_list
-        if not f.get("dir") and any(f.get("file_name", "").lower().endswith(ext) for ext in VIDEO_EXTS | ARCHIVE_EXTS)
+        if not f.get("dir") and any(f.get("file_name", "").lower().endswith(ext) for ext in VIDEO_EXTS)
+    ]
+    root_archives = [
+        f for f in root_list
+        if not f.get("dir") and any(f.get("file_name", "").lower().endswith(ext) for ext in ARCHIVE_EXTS)
     ]
     root_dirs = [f for f in root_list if f.get("dir")]
 
-    if root_videos:
+    if root_videos or root_archives:
         targets.append({
             "name": share_title or "根目录/全集",
             "fid": "0",
             "shareurl": shareurl,
             "season": parse_season_number(share_title) or "01",
             "video_count": len(root_videos),
-            "sample_files": [f["file_name"] for f in root_videos[:3]],
+            "archive_count": len(root_archives),
+            "sample_files": [f["file_name"] for f in (root_videos + root_archives)[:3]],
             "full_path": "/",
         })
 
@@ -282,11 +307,15 @@ async def explore_share_tree(
         sub_files = sub_res.get("data", {}).get("list", [])
         videos = [
             f for f in sub_files
-            if not f.get("dir") and any(f.get("file_name", "").lower().endswith(ext) for ext in VIDEO_EXTS | ARCHIVE_EXTS)
+            if not f.get("dir") and any(f.get("file_name", "").lower().endswith(ext) for ext in VIDEO_EXTS)
+        ]
+        archives = [
+            f for f in sub_files
+            if not f.get("dir") and any(f.get("file_name", "").lower().endswith(ext) for ext in ARCHIVE_EXTS)
         ]
         sub_dirs = [f for f in sub_files if f.get("dir")]
 
-        if videos:
+        if videos or archives:
             season_num = parse_season_number(folder_name) or parse_season_number(full_path)
             targets.append({
                 "name": folder_name,
@@ -294,7 +323,8 @@ async def explore_share_tree(
                 "shareurl": sub_shareurl,
                 "season": season_num,
                 "video_count": len(videos),
-                "sample_files": [f["file_name"] for f in videos[:3]],
+                "archive_count": len(archives),
+                "sample_files": [f["file_name"] for f in (videos + archives)[:3]],
                 "full_path": full_path,
             })
 
@@ -320,7 +350,7 @@ async def explore_share_tree(
         "targets": targets,
         "root_files": root_list,
     }
-    _TREE_CACHE[cache_key] = (time.time(), result)
+    _cache_set(_TREE_CACHE, cache_key, result, TREE_CACHE_TTL)
     return result
 
 
@@ -328,7 +358,7 @@ async def get_magic_regex() -> Dict[str, Any]:
     """获取 QAS 中配置的全部魔法变量与正则规则"""
     url = _build_url("/data")
     try:
-        async with _get_http_client() as client:
+        async with _use_http_client() as client:
             resp = await client.get(url, timeout=15.0)
             if resp.status_code == 200:
                 data = resp.json()
@@ -405,7 +435,7 @@ async def add_task(task_data: Dict[str, Any]) -> Dict[str, Any]:
     url = _build_url("/api/add_task")
     normalized = _normalize_task(task_data)
     try:
-        async with _get_http_client() as client:
+        async with _use_http_client() as client:
             resp = await client.post(url, json=normalized, timeout=15.0)
             data = resp.json() if resp.status_code in [200, 400, 401] else {}
             if resp.status_code == 200 and data.get("success"):
@@ -453,7 +483,8 @@ async def run_task_stream(tasklist: Optional[List[Dict[str, Any]]] = None) -> As
     normalized_tasks = [_normalize_task(t) for t in enriched_tasks]
     payload = {"tasklist": normalized_tasks}
 
-    client = _get_http_client()
+    client = await get_qas_client()
+    resp = None
     try:
         req = client.build_request("POST", url, json=payload, timeout=600.0)
         resp = await client.send(req, stream=True)
@@ -468,14 +499,15 @@ async def run_task_stream(tasklist: Optional[List[Dict[str, Any]]] = None) -> As
     except Exception as e:
         yield f"data: [ERROR] 转存触发执行异常: {str(e)}\n\n"
     finally:
-        await client.aclose()
+        if resp is not None:
+            await resp.aclose()
 
 
 async def get_tasks() -> Dict[str, Any]:
     """获取 QAS 现有的全部任务列表与配置"""
     url = _build_url("/data")
     try:
-        async with _get_http_client() as client:
+        async with _use_http_client() as client:
             resp = await client.get(url, timeout=15.0)
             if resp.status_code == 200:
                 data = resp.json()
@@ -498,7 +530,7 @@ async def batch_delete_tasks(tasknames: List[str]) -> Dict[str, Any]:
     url_data = _build_url("/data")
     url_update = _build_url("/update")
     try:
-        async with _get_http_client() as client:
+        async with _use_http_client() as client:
             resp = await client.get(url_data, timeout=15.0)
             if resp.status_code != 200:
                 return {"success": False, "message": "无法获取当前任务列表"}

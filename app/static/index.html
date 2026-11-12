@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CineNaut — 影视发现与云盘智能转存</title>
-  <link rel="stylesheet" href="/static/css/codegraph.css?v=9.9">
+  <link rel="stylesheet" href="/static/css/codegraph.css?v=9.11">
 </head>
 <body>
   <!-- 移动端侧边栏遮罩 -->
@@ -149,6 +149,15 @@
               <div class="state-desc">若未配置 API 密钥，请在左侧点击【系统配置】进行配置</div>
             </div>
           </div>
+
+          <!-- 移动端底部搜索入口 -->
+          <button type="button" class="mobile-search-bar" id="mobile-search-bar" onclick="openMobileSearch()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span>搜索电影、剧集、动画</span>
+            <span class="mobile-search-bar-filter" aria-hidden="true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="17" x2="14" y2="17"/></svg>
+            </span>
+          </button>
         </div>
 
         <!-- 视图 2：转存任务列表 -->
@@ -528,22 +537,28 @@
 
           <!-- 夸克分享资源搜索 -->
           <div class="form-item">
-            <div class="form-label-row">
-              <label class="form-label">夸克网盘资源检索 (PanSou / CloudSaver)</label>
-              <div style="display:flex;align-items:center;gap:12px;">
-                <label style="font-size:0.75rem;display:flex;align-items:center;gap:4px;cursor:pointer;" title="开启后将根据画质与纯净度自动排序，过滤垃圾广告引流">
-                  <input type="checkbox" id="modal-ai-rank" checked>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -1px;"><polygon points="12 2 15 9 22 12 15 15 12 22 9 9 12 2"/></svg>
-                  <span>AI 智能质检</span>
-                </label>
-                <label style="font-size:0.75rem;display:flex;align-items:center;gap:4px;cursor:pointer;">
-                  <input type="checkbox" id="modal-deep-search"> 深度搜索
-                </label>
+            <div class="modal-search-sticky">
+              <div class="form-label-row">
+                <label class="form-label">夸克网盘资源检索</label>
+                <span class="modal-search-source">PanSou / CloudSaver</span>
               </div>
-            </div>
-            <div class="search-box-row">
-              <input type="text" class="input-text" id="modal-search-kw" placeholder="输入关键词搜索夸克资源">
-              <button type="button" class="btn" id="modal-search-btn" onclick="searchModalResources()">检索资源</button>
+              <div class="search-box-row">
+                <input type="text" class="input-text" id="modal-search-kw" placeholder="输入关键词搜索夸克资源">
+                <button type="button" class="btn" id="modal-search-btn" onclick="searchModalResources()">检索资源</button>
+              </div>
+              <div class="modal-search-filters">
+                <label class="ms-chip" title="开启后将根据画质与纯净度自动排序，过滤垃圾广告引流">
+                  <input type="checkbox" id="modal-ai-rank" checked>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;"><polygon points="12 2 15 9 22 12 15 15 12 22 9 9 12 2"/></svg>
+                  <span>AI 质检</span>
+                </label>
+                <label class="ms-chip">
+                  <input type="checkbox" id="modal-deep-search">
+                  <span>深度搜索</span>
+                </label>
+                <button type="button" class="ms-chip" data-result-filter="4k">仅 4K</button>
+                <button type="button" class="ms-chip" data-result-filter="complete">全集</button>
+              </div>
             </div>
             <div id="modal-search-ai-badge" style="display:none;margin-top:0.45rem;font-size:0.74rem;color:var(--cg-ink-2);background:var(--cg-paper-2);border:1px solid var(--cg-rule-soft);border-radius:2px;padding:0.35rem 0.65rem;align-items:center;justify-content:space-between;">
               <div style="display:flex;align-items:center;gap:6px;">
@@ -738,9 +753,55 @@
     </div>
   </div>
 
+  <!-- 移动端全屏搜索 -->
+  <div class="mobile-search-overlay" id="mobile-search-overlay" hidden>
+    <div class="mobile-search-head">
+      <button type="button" class="mobile-search-back" onclick="closeMobileSearch()" aria-label="返回">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="mobile-search-input-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="mobile-search-input" placeholder="搜索电影、剧集、动画" autocomplete="off" enterkeyhint="search">
+        <button type="button" class="mobile-search-clear" id="mobile-search-clear" onclick="clearMobileSearchInput()" aria-label="清空" hidden>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <button type="button" class="mobile-search-cancel" onclick="closeMobileSearch()">取消</button>
+    </div>
+
+    <div class="mobile-search-body">
+      <div id="mobile-search-suggest">
+        <div class="mobile-search-section" id="mobile-recent-wrap" hidden>
+          <div class="mobile-search-label">最近搜索</div>
+          <div class="mobile-search-chips" id="mobile-recent-chips"></div>
+        </div>
+        <div class="mobile-search-section" id="mobile-hot-wrap">
+          <div class="mobile-search-label">热门搜索</div>
+          <div class="mobile-search-chips" id="mobile-hot-chips"></div>
+        </div>
+        <div class="mobile-search-section" id="mobile-suggest-wrap" hidden>
+          <div class="mobile-search-label">联想结果</div>
+          <div id="mobile-suggest-list"></div>
+        </div>
+        <button type="button" class="mobile-search-all" id="mobile-search-all" onclick="submitMobileSearch()" hidden>查看全部结果 →</button>
+      </div>
+
+      <div id="mobile-search-results" hidden>
+        <div class="mobile-results-meta" id="mobile-results-meta"></div>
+        <div class="mobile-results-filters" id="mobile-results-filters">
+          <button type="button" class="mobile-results-filter active" data-mfilter="all">全部</button>
+          <button type="button" class="mobile-results-filter" data-mfilter="movie">电影</button>
+          <button type="button" class="mobile-results-filter" data-mfilter="tv">剧集</button>
+          <button type="button" class="mobile-results-filter" data-mfilter="anime">动画</button>
+        </div>
+        <div id="mobile-results-list"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- 全局 Toast 容器 -->
   <div id="toast-container" class="toast-container"></div>
 
-  <script src="/static/js/app.js?v=9.9"></script>
+  <script src="/static/js/app.js?v=9.11"></script>
 </body>
 </html>

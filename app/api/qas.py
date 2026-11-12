@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 import time
 from typing import Any, AsyncGenerator, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -98,6 +99,13 @@ class ResolvePathPayload(BaseModel):
     whole_folder: Optional[bool] = Field(default=True, description="是否整剧/整套转存模式")
 
 
+def _safe_path_name(value: str, fallback: str = "未命名") -> str:
+    """清洗路径变量中的分隔符与非法字符，避免生成多余目录或路径穿越。"""
+    cleaned = re.sub(r'[\\/:*?"<>|{}\x00-\x1f]+', "_", str(value or "")).strip()
+    cleaned = cleaned.strip(". ")
+    return cleaned or fallback
+
+
 def calculate_save_path(
     media_type: str,
     title: str,
@@ -126,11 +134,11 @@ def calculate_save_path(
         tpl = cfg.path_tv
 
     vars_dict = {
-        "片名": title,
-        "剧名": title,
-        "年份": year or "2024",
-        "季数": season or "01",
-        "分辨率": resolution or "4K",
+        "片名": _safe_path_name(title),
+        "剧名": _safe_path_name(title),
+        "年份": _safe_path_name(year or "2024", "2024"),
+        "季数": _safe_path_name(season or "01", "01"),
+        "分辨率": _safe_path_name(resolution or "4K", "4K"),
     }
 
     resolved = tpl
@@ -321,6 +329,7 @@ async def auto_pilot_workflow(payload: AutoPilotPayload):
     tree_res = None
     diagnosis = None
     fallback_attempts = 0
+    probe_any_success = False
 
     for idx, cand in enumerate(ranked_items[:3]):
         if cand.get("is_spam") and idx > 0:
@@ -331,17 +340,26 @@ async def auto_pilot_workflow(payload: AutoPilotPayload):
 
         probe_tree = await explore_share_tree(shareurl=shareurl, max_depth=4)
         if probe_tree.get("success") and probe_tree.get("targets"):
-            chosen_candidate = cand
-            tree_res = probe_tree
-            diagnosis = diagnose_share_structure_and_rename(
+            probe_any_success = True
+            diag = diagnose_share_structure_and_rename(
                 share_tree=probe_tree,
                 media_info=media_info,
             )
-            fallback_attempts = idx
-            break
+            if diag.get("video_count", 0) > 0:
+                chosen_candidate = cand
+                tree_res = probe_tree
+                diagnosis = diag
+                fallback_attempts = idx
+                break
 
-    # 若前 3 条都探测失败，回退使用首条候选（即便无法深入探测）
+    # 若前 3 条都探测失败，回退使用首条候选；若探测成功但只有压缩包，则明确拒绝
     if not chosen_candidate and ranked_items:
+        if probe_any_success:
+            return {
+                "success": False,
+                "message": "检索到的资源为空壳包或仅包含压缩包（未发现有效视频文件），建议切换手动模式或更换关键词。",
+                "media_info": media_info,
+            }
         chosen_candidate = ranked_items[0]
 
     if not chosen_candidate:

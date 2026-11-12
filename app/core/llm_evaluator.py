@@ -2,9 +2,16 @@ import asyncio
 import json
 import re
 import time
+from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
-import httpx
 from app.core.config import get_config
+from app.core.http_clients import get_llm_client
+
+
+@asynccontextmanager
+async def _use_llm_client():
+    """复用共享的 LLM 连接池；退出上下文时不关闭 client。"""
+    yield await get_llm_client()
 
 # ============================================================
 # 1. 精密特征正则词库 (全面覆盖 4K/2160/杜比/HDR/蓝光/全集/广告)
@@ -300,8 +307,8 @@ async def verify_llm_connection(
     url = f"{b_url}/chat/completions"
     start_time = time.time()
     try:
-        async with httpx.AsyncClient(timeout=12.0) as client:
-            resp = await client.post(url, json=payload, headers=headers)
+        async with _use_llm_client() as client:
+            resp = await client.post(url, json=payload, headers=headers, timeout=12.0)
             latency = int((time.time() - start_time) * 1000)
 
             if resp.status_code == 200:
@@ -394,8 +401,8 @@ async def refine_with_llm(
 
     url = f"{b_url}/chat/completions"
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(url, json=payload, headers=headers)
+        async with _use_llm_client() as client:
+            resp = await client.post(url, json=payload, headers=headers, timeout=10.0)
             if resp.status_code != 200:
                 return top_candidates
 
@@ -525,6 +532,7 @@ def diagnose_share_structure_and_rename(
     if is_multi_season:
         target_sub_url = share_tree.get("shareurl", "")
         total_videos = sum(t.get("video_count", 0) for t in targets) or target_unit.get("video_count", 0) if target_unit else 0
+        archive_count = sum(t.get("archive_count", 0) for t in targets)
         seasons_label = f"S{distinct_seasons[0]}~S{distinct_seasons[-1]}" if len(distinct_seasons) >= 2 else "全季"
         target_name = f"全季大合集 ({seasons_label}，共 {len(distinct_seasons)} 季)"
         video_count = total_videos
@@ -534,9 +542,12 @@ def diagnose_share_structure_and_rename(
         target_sub_url = target_unit.get("shareurl") if target_unit else share_tree.get("shareurl", "")
         target_name = target_unit.get("name", "根目录") if target_unit else "根目录"
         video_count = target_unit.get("video_count", 0) if target_unit else 0
+        archive_count = target_unit.get("archive_count", 0) if target_unit else 0
         full_path = target_unit.get("full_path", "/") if target_unit else "/"
         levels = [p for p in full_path.split("/") if p.strip()]
         levels_skipped = max(0, len(levels) - 1)
+
+    archive_only = video_count == 0 and archive_count > 0
 
     # 4. 分析文件名样本并生成重命名建议
     samples = target_unit.get("sample_files", []) if target_unit else []
@@ -549,7 +560,12 @@ def diagnose_share_structure_and_rename(
     has_tv_ep = bool(re.search(r"[Ee]\d+|第\s*\d+\s*[集话]|(?:\.|\b)[Ss]\d+", sample_file))
     is_movie = (media_type == "movie") or (not has_tv_ep and video_count <= 2)
 
-    if is_movie:
+    if archive_only:
+        # 只有压缩包，无法直接按视频文件规范重命名
+        suggested_filename = sample_file
+        pattern = ".*"
+        replace = ""
+    elif is_movie:
         # 【电影标准规范】电影名 (年份).ext，例如：寻梦环游记 (2017).mp4
         year_str = f" ({m_year})" if m_year and len(m_year) == 4 else ""
         suggested_filename = f"{m_title}{year_str}{ext}"
@@ -581,7 +597,12 @@ def diagnose_share_structure_and_rename(
             pattern = r"^.*?(\d{1,3}).*?(\.(?:mp4|mkv|avi|ts|flv|mov|wmv))$"
             replace = f"{m_title} - S{s_num}E$1$2"
 
-    if is_multi_season:
+    if archive_only:
+        summary_text = (
+            f"仅检测到 {archive_count} 个压缩包，未发现可直接转存的视频文件；"
+            f"如需入库，建议启用 QAS 云解压后再识别正片。"
+        )
+    elif is_multi_season:
         summary_text = (
             f"检测到【全季大合集】（涵盖 {len(distinct_seasons)} 个季度，共 {video_count} 个视频），"
             f"已自动启用全季转存模式与 $TV 智能分季规则，保存至剧集根目录，完整保留所有季数。"
@@ -603,6 +624,7 @@ def diagnose_share_structure_and_rename(
         "target_full_path": full_path,
         "levels_skipped": levels_skipped,
         "video_count": video_count,
+        "archive_count": archive_count,
         "spam_files_count": len(spam_files),
         "spam_files": spam_files[:3],
         "sample_filename": sample_file,

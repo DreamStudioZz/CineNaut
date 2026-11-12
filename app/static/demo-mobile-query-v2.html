@@ -1,0 +1,1268 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>移动端查询体验方案 v2</title>
+<style>
+  /* ============================================================
+     CineNaut · 移动端查询体验方案 v2
+     静态原型：米纸 / 墨线 / 强调绿，无后端依赖
+     ============================================================ */
+  :root {
+    --paper: #f7f6f2;
+    --paper-2: #f1efe8;
+    --paper-press: #e8e6dd;
+    --ink: #16150f;
+    --ink-2: #56544a;
+    --ink-3: #87847a;
+    --rule: #16150f;
+    --rule-soft: #d6d3c8;
+    --green: #1b7f43;
+    --gold: #c28800;
+    --danger: #b91c1c;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding: 0 max(16px, env(safe-area-inset-left, 0px)) 64px;
+    overflow-x: hidden;
+  }
+
+  button { font-family: inherit; }
+
+  .page-head {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 22px 0 16px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .brand-mark {
+    width: 34px; height: 34px;
+    border: 1.5px solid var(--ink);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-weight: 800; font-size: 12px;
+    letter-spacing: 0.04em; flex-shrink: 0;
+  }
+  .brand-name { font-size: 1.02rem; font-weight: 800; letter-spacing: -0.02em; }
+  .brand-name span { color: var(--ink-3); font-weight: 600; }
+  .brand-sub { font-size: 0.76rem; color: var(--ink-2); margin-top: 2px; }
+  .head-note {
+    font-family: var(--mono); font-size: 0.68rem; color: var(--ink-3);
+    text-align: right; line-height: 1.6; letter-spacing: 0.06em;
+  }
+  .head-note b { color: var(--ink); font-size: 0.9rem; }
+
+  .intro {
+    max-width: 1040px; margin: 18px auto 0;
+    font-size: 0.86rem; color: var(--ink-2);
+  }
+  .intro p { margin: 0; max-width: 76ch; }
+  .intro strong { color: var(--ink); }
+
+  .switcher {
+    max-width: 1040px; margin: 18px auto 0;
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .sw-btn {
+    appearance: none; border: 1px solid var(--rule-soft);
+    background: var(--paper); color: var(--ink-2);
+    font-size: 0.8rem; font-weight: 700;
+    padding: 8px 12px; display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+  .sw-btn:hover { background: var(--paper-press); border-color: var(--ink-3); color: var(--ink); }
+  .sw-btn[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .sw-btn:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  .sw-idx { font-family: var(--mono); font-size: 0.68rem; font-weight: 800; opacity: 0.6; }
+  .sw-btn[aria-selected="true"] .sw-idx { opacity: 1; color: var(--gold); }
+
+  .stage {
+    max-width: 1040px; margin: 16px auto 0;
+    background: var(--paper-2);
+    border: 1px solid var(--rule-soft);
+    padding: clamp(14px, 2.4vw, 28px);
+    background-image:
+      linear-gradient(rgba(22, 21, 15, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(22, 21, 15, 0.035) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .stage-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
+    font-family: var(--mono); font-size: 0.72rem;
+  }
+  #stage-name { font-weight: 700; color: var(--ink); letter-spacing: 0.02em; }
+  #stage-tag { color: var(--ink-3); }
+
+  .stage-grid {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    gap: clamp(20px, 4vw, 44px);
+    align-items: start;
+  }
+  @media (max-width: 820px) {
+    .stage-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* ============================================================
+     手机外壳
+     ============================================================ */
+  .phone {
+    width: min(340px, 100%);
+    max-width: 100%;
+    height: 680px;
+    border: 7px solid var(--ink);
+    border-radius: 28px;
+    background: var(--paper);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 10px 12px 0 rgba(22, 21, 15, 0.12);
+    justify-self: center;
+  }
+  .screen {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background: var(--paper);
+    overflow: hidden;
+  }
+  .statusbar {
+    height: 26px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px;
+    font-family: var(--mono); font-size: 9px; color: var(--ink-3);
+  }
+  .status-icons { letter-spacing: 1px; }
+
+  .app-top {
+    height: 46px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .app-title { font-size: 14px; font-weight: 800; letter-spacing: -0.02em; }
+  .spacer { flex: 1; }
+  .icon-btn {
+    width: 30px; height: 30px; flex-shrink: 0;
+    border: 1px solid var(--rule); background: var(--paper);
+    display: grid; place-items: center; padding: 0; cursor: pointer;
+    color: var(--ink);
+  }
+  .icon-btn:active { background: var(--paper-press); }
+  .text-btn {
+    border: 0; background: transparent; color: var(--ink-2);
+    font-size: 12px; font-weight: 700; padding: 6px 2px; cursor: pointer;
+  }
+
+  .app-body { flex: 1; overflow-y: auto; padding: 10px 12px 16px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-size: 11px; line-height: 1.2;
+    border: 1px solid var(--rule-soft); background: var(--paper);
+    padding: 5px 9px; cursor: pointer; white-space: nowrap;
+  }
+  .chip.active { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+  .poster-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .poster {
+    position: relative; aspect-ratio: 2 / 3;
+    border: 1px solid var(--rule);
+    display: flex; align-items: flex-end;
+    padding: 6px; overflow: hidden;
+    color: #fff; font-size: 10px; font-weight: 700; line-height: 1.25;
+  }
+  .poster::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.02) 60%);
+  }
+  .poster span { position: relative; z-index: 1; }
+  .poster .p-badge {
+    position: absolute; top: 5px; right: 5px; z-index: 1;
+    font-family: var(--mono); font-size: 8px;
+    background: rgba(255, 255, 255, 0.9); color: var(--ink);
+    padding: 1px 4px;
+  }
+  .p1 { background: linear-gradient(145deg, #3a4a60, #101722); }
+  .p2 { background: linear-gradient(145deg, #6b4b2f, #1c120b); }
+  .p3 { background: linear-gradient(145deg, #2f5c4a, #0e1b16); }
+  .p4 { background: linear-gradient(145deg, #5c3448, #1b0f16); }
+  .p5 { background: linear-gradient(145deg, #3c3c58, #12121c); }
+  .p6 { background: linear-gradient(145deg, #5a5030, #1b180d); }
+
+  /* ============================================================
+     全屏搜索层
+     ============================================================ */
+  .overlay {
+    position: absolute; inset: 0; z-index: 20;
+    background: var(--paper);
+    display: flex; flex-direction: column;
+  }
+  .overlay-top {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--rule);
+    flex-shrink: 0;
+  }
+  .overlay-input {
+    flex: 1; min-width: 0;
+    height: 40px;
+    display: flex; align-items: center; gap: 7px;
+    border: 1px solid var(--rule);
+    background: var(--paper-2);
+    padding: 0 10px;
+  }
+  .overlay-input:focus-within { background: #fff; box-shadow: 2px 2px 0 var(--rule); }
+  .overlay-input input {
+    flex: 1; min-width: 0;
+    border: 0; outline: none; background: transparent;
+    font-size: 14px; color: var(--ink);
+  }
+  .overlay-body { flex: 1; overflow-y: auto; padding: 4px 12px 20px; }
+
+  .sec-label {
+    font-family: var(--mono); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 16px 0 8px;
+  }
+
+  .sug-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    cursor: pointer;
+  }
+  .sug-row:active { background: var(--paper-2); }
+  .sug-thumb {
+    width: 38px; height: 54px; flex-shrink: 0;
+    border: 1px solid var(--rule-soft);
+  }
+  .sug-info { min-width: 0; flex: 1; }
+  .sug-title {
+    font-size: 13px; font-weight: 700;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sug-meta {
+    font-family: var(--mono); font-size: 9px; color: var(--ink-3);
+    margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sug-rating {
+    font-family: var(--mono); font-size: 11px; font-weight: 800;
+    color: var(--gold); flex-shrink: 0;
+  }
+
+  .wide-action {
+    width: 100%; margin-top: 14px;
+    border: 1px solid var(--rule); background: var(--paper);
+    color: var(--ink); font-size: 12px; font-weight: 700;
+    padding: 11px 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .wide-action:active { background: var(--paper-press); }
+
+  .result-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .result-head-title { font-size: 14px; font-weight: 800; }
+  .result-head-sub { font-family: var(--mono); font-size: 9px; color: var(--ink-3); margin-top: 1px; }
+  .result-filters { margin: 10px 0 2px; }
+
+  .result-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .result-poster {
+    width: 50px; height: 74px; flex-shrink: 0;
+    border: 1px solid var(--rule);
+  }
+  .result-main { flex: 1; min-width: 0; }
+  .result-title { font-size: 13px; font-weight: 800; }
+  .result-meta {
+    font-family: var(--mono); font-size: 9px; color: var(--ink-3);
+    margin-top: 2px; line-height: 1.5;
+  }
+  .result-cta {
+    flex-shrink: 0;
+    border: 1px solid var(--rule); background: var(--ink); color: var(--paper);
+    font-size: 10px; font-weight: 700; padding: 6px 9px; cursor: pointer;
+  }
+
+  /* 底部悬浮搜索条 */
+  .bottom-bar {
+    position: absolute; left: 12px; right: 12px; bottom: 14px; z-index: 12;
+    height: 46px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    box-shadow: 3px 3px 0 var(--rule);
+    font-size: 12px; color: var(--ink-3);
+    cursor: pointer;
+  }
+  .bottom-bar .bar-filter {
+    margin-left: auto;
+    border-left: 1px solid var(--rule-soft);
+    padding-left: 10px;
+    color: var(--ink);
+    display: flex; align-items: center;
+  }
+  .app-body.with-bottom-bar { padding-bottom: 76px; }
+
+  /* 原地增强：吸顶查询条 */
+  .query-bar {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    padding: 8px 0 9px;
+  }
+  .query-input {
+    height: 38px;
+    display: flex; align-items: center; gap: 7px;
+    border: 1px solid var(--rule);
+    background: var(--paper-2);
+    padding: 0 10px;
+  }
+  .query-input input {
+    flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
+    font-size: 13px; color: var(--ink);
+  }
+  .query-filters { display: flex; gap: 6px; margin-top: 7px; overflow-x: auto; scrollbar-width: none; }
+  .query-filters::-webkit-scrollbar { display: none; }
+
+  /* ============================================================
+     转存弹窗盘搜 mock
+     ============================================================ */
+  .modal-mock {
+    position: absolute; inset: 0; z-index: 15;
+    background: rgba(22, 21, 15, 0.46);
+    display: flex; align-items: flex-end;
+  }
+  .modal-card {
+    width: 100%; height: 94%;
+    background: var(--paper);
+    border-top: 1.5px solid var(--ink);
+    display: flex; flex-direction: column;
+  }
+  .modal-head {
+    flex-shrink: 0;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--rule);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .modal-title { font-size: 13px; font-weight: 800; }
+  .modal-sub { font-family: var(--mono); font-size: 9px; color: var(--ink-3); margin-top: 1px; }
+  .modal-tabs {
+    flex-shrink: 0;
+    display: flex; gap: 4px;
+    padding: 8px 12px 0;
+  }
+  .modal-tab {
+    flex: 1; text-align: center;
+    border: 1px solid var(--rule-soft);
+    background: var(--paper-2);
+    font-size: 11px; font-weight: 700;
+    padding: 7px 4px;
+    color: var(--ink-2);
+  }
+  .modal-tab.active { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .modal-body { flex: 1; overflow-y: auto; padding: 10px 12px 16px; }
+
+  .sticky-search { position: sticky; top: 0; z-index: 4; background: var(--paper); padding-bottom: 8px; }
+  .search-box-row { display: flex; gap: 6px; }
+  .search-box-row input {
+    flex: 1; min-width: 0; height: 40px;
+    border: 1px solid var(--rule); background: var(--paper-2);
+    padding: 0 10px; font-size: 13px; outline: none;
+  }
+  .search-box-row input:focus { background: #fff; box-shadow: 2px 2px 0 var(--rule); }
+  .search-box-row .btn {
+    flex-shrink: 0; border: 1px solid var(--rule);
+    background: var(--ink); color: var(--paper);
+    font-size: 12px; font-weight: 700; padding: 0 12px; cursor: pointer;
+  }
+  .filter-chips { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .filter-chips .chip { font-size: 10px; padding: 4px 8px; }
+
+  .ai-strip {
+    margin-top: 8px;
+    border: 1px solid var(--rule-soft);
+    background: var(--paper-2);
+    padding: 6px 8px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    font-size: 10px; color: var(--ink-2);
+  }
+  .ai-strip .mono { font-family: var(--mono); font-size: 8px; color: var(--ink-3); letter-spacing: 0.08em; }
+
+  .rcard {
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 10px;
+    margin-top: 10px;
+  }
+  .rcard.best { border-left: 3px solid var(--gold); }
+  .rcard-top { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .rank-badge {
+    font-family: var(--mono); font-size: 9px; font-weight: 800;
+    border: 1px solid var(--rule); padding: 1px 5px;
+    background: var(--paper-2);
+  }
+  .rank-badge.gold { background: #f6e6b8; border-color: var(--gold); color: #6b4a00; }
+  .rcard-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-left: auto; }
+  .rtag {
+    font-size: 8px; font-weight: 700;
+    border: 1px solid var(--rule-soft);
+    background: var(--paper-2);
+    padding: 1px 4px;
+  }
+  .rtag.hot { border-color: #b9dcc6; background: #e6f4ea; color: #137333; }
+  .rcard-title { font-size: 12px; font-weight: 800; line-height: 1.35; word-break: break-all; }
+  .rcard-reason { font-size: 10px; color: var(--ink-2); margin-top: 3px; line-height: 1.5; }
+  .rcard-url {
+    font-family: var(--mono); font-size: 8px; color: var(--ink-3);
+    margin-top: 4px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .rcard-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .rcard-actions .btn {
+    flex: 1; border: 1px solid var(--rule);
+    font-size: 10px; font-weight: 700; padding: 6px 4px; cursor: pointer;
+    background: var(--paper);
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .rcard-actions .btn.primary { background: var(--ink); color: var(--paper); }
+
+  .sheet-backdrop {
+    position: absolute; inset: 0; z-index: 30;
+    background: rgba(22, 21, 15, 0.46);
+    display: flex; align-items: flex-end;
+  }
+  .sheet {
+    width: 100%; max-height: 62%;
+    background: var(--paper);
+    border-top: 1.5px solid var(--ink);
+    display: flex; flex-direction: column;
+  }
+  .sheet-handle {
+    width: 36px; height: 3px; background: var(--rule-soft);
+    margin: 7px auto 4px; border-radius: 2px;
+  }
+  .sheet-head {
+    padding: 4px 12px 8px;
+    border-bottom: 1px solid var(--rule-soft);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; font-weight: 800;
+  }
+  .sheet-list { overflow-y: auto; padding: 4px 12px 16px; }
+  .sheet-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    font-size: 11px;
+  }
+  .sheet-item .mono { font-family: var(--mono); font-size: 9px; color: var(--ink-3); margin-left: auto; }
+
+  /* ============================================================
+     说明面板
+     ============================================================ */
+  .spec-kicker {
+    font-family: var(--mono); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.14em; color: var(--ink-3);
+  }
+  .spec h2 { margin: 6px 0 8px; font-size: 22px; letter-spacing: -0.02em; }
+  .spec-desc { margin: 0; font-size: 14px; color: var(--ink-2); }
+  .spec-rows { margin: 16px 0 0; }
+  .spec-row {
+    display: grid; grid-template-columns: 52px minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 0;
+    border-top: 1px solid var(--rule-soft);
+  }
+  .spec-row dt { font-family: var(--mono); font-size: 9px; color: var(--ink-3); letter-spacing: 0.08em; }
+  .spec-row dd { margin: 0; font-size: 13px; color: var(--ink-2); }
+  .spec-entry {
+    margin-top: 14px;
+    padding: 9px 10px;
+    border: 1px solid var(--rule-soft);
+    background: var(--paper);
+    font-family: var(--mono); font-size: 9px; color: var(--ink-2);
+    letter-spacing: 0.04em;
+  }
+  .spec-entry b { color: var(--ink); }
+
+  /* ============================================================
+     对比区
+     ============================================================ */
+  .compare { max-width: 1040px; margin: 34px auto 0; }
+  .compare-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    padding-bottom: 12px; border-bottom: 1px solid var(--rule);
+  }
+  .compare-head h2 { margin: 0; font-size: 20px; letter-spacing: -0.02em; }
+  .compare-head p { margin: 0; font-size: 12px; color: var(--ink-3); max-width: 54ch; }
+  .compare-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+  }
+  .cmp-card {
+    border: 1px solid var(--rule-soft);
+    background: var(--paper);
+    padding: 12px;
+  }
+  .cmp-top { display: flex; align-items: center; gap: 8px; }
+  .cmp-idx {
+    width: 22px; height: 22px; flex-shrink: 0;
+    border: 1px solid var(--rule);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-size: 10px; font-weight: 800;
+  }
+  .cmp-top h3 { margin: 0; font-size: 14px; }
+  .cmp-tag {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 8px; color: var(--ink-3);
+    border: 1px solid var(--rule-soft); padding: 2px 5px;
+    white-space: nowrap;
+  }
+  .cmp-desc { margin: 8px 0 0; font-size: 12px; color: var(--ink-2); }
+  .cmp-list { margin-top: 8px; }
+  .cmp-row {
+    display: grid; grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px; padding: 6px 0;
+    border-top: 1px solid var(--rule-soft);
+  }
+  .cmp-row dt { font-family: var(--mono); font-size: 8px; color: var(--ink-3); }
+  .cmp-row dd { margin: 0; font-size: 11px; color: var(--ink-2); }
+
+  .recommend {
+    max-width: 1040px; margin: 18px auto 0;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    padding: 14px 16px;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .recommend-mark {
+    width: 26px; height: 26px; flex-shrink: 0;
+    background: var(--ink); color: var(--paper);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 800;
+  }
+  .recommend p { margin: 0; font-size: 13px; color: var(--ink-2); }
+  .recommend b { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <div class="brand">
+    <div class="brand-mark">CN</div>
+    <div>
+      <div class="brand-name">CineNaut <span>/ 移动端查询 v2</span></div>
+      <div class="brand-sub">入口、联想、结果、盘搜四段一起改 · 可切换 / 可点击</div>
+    </div>
+  </div>
+  <div class="head-note">查询体验<br><b>4</b> OPTIONS</div>
+</header>
+
+<div class="intro">
+  <p>
+    桌面端的查询链路是完整的，但手机端真正的问题不只是「搜索框太窄」：顶栏空间被菜单和状态挤占、联想列表被键盘遮挡、
+    搜完以后结果仍然沿用桌面三列海报网格、转存弹窗里的盘搜控件又挤成一行。下面四套方案分别处理这四段，
+    可以单独采用，也可以组合。所有交互都是静态 mock，不连后端。
+  </p>
+</div>
+
+<nav class="switcher" role="tablist" aria-label="移动端查询方案">
+  <button class="sw-btn" role="tab" data-target="a" aria-selected="true">
+    <span class="sw-idx">A</span> 全屏搜索页
+  </button>
+  <button class="sw-btn" role="tab" data-target="b" aria-selected="false" tabindex="-1">
+    <span class="sw-idx">B</span> 底部搜索条
+  </button>
+  <button class="sw-btn" role="tab" data-target="c" aria-selected="false" tabindex="-1">
+    <span class="sw-idx">C</span> 结果列表化
+  </button>
+  <button class="sw-btn" role="tab" data-target="d" aria-selected="false" tabindex="-1">
+    <span class="sw-idx">D</span> 盘搜卡片化
+  </button>
+</nav>
+
+<section class="stage" aria-live="polite">
+  <div class="stage-head">
+    <span id="stage-name">方案 A · 全屏搜索页</span>
+    <span id="stage-tag">最专注，键盘友好</span>
+  </div>
+
+  <!-- ================= A ================= -->
+  <div class="variant" data-v="a">
+    <div class="stage-grid">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="status-icons">●●●</span></div>
+
+          <div class="app-top">
+            <button class="icon-btn" aria-label="菜单">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <span class="app-title">影视发现</span>
+            <span class="spacer"></span>
+            <button class="icon-btn" id="a-open" aria-label="搜索">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
+          </div>
+
+          <div class="app-body">
+            <div class="chips"><span class="chip active">热门电影</span><span class="chip">最新</span><span class="chip">高分</span></div>
+            <div class="poster-grid">
+              <div class="poster p1"><span class="p-badge">4K</span><span>星际穿越</span></div>
+              <div class="poster p2"><span class="p-badge">4K</span><span>沙丘 2</span></div>
+              <div class="poster p3"><span class="p-badge">HD</span><span>繁花</span></div>
+              <div class="poster p4"><span class="p-badge">HD</span><span>奥本海默</span></div>
+              <div class="poster p5"><span class="p-badge">HD</span><span>三体</span></div>
+              <div class="poster p6"><span class="p-badge">HD</span><span>周处除三害</span></div>
+            </div>
+          </div>
+
+          <div class="overlay" id="a-overlay">
+            <div class="overlay-top">
+              <button class="icon-btn" id="a-close" aria-label="返回">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div class="overlay-input">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="a-input" value="星" placeholder="搜索电影、剧集、动画" autocomplete="off">
+              </div>
+              <button class="text-btn" id="a-cancel">取消</button>
+            </div>
+
+            <div class="overlay-body">
+              <div id="a-suggest">
+                <div id="a-recent-wrap">
+                  <div class="sec-label">最近搜索</div>
+                  <div class="chips">
+                    <span class="chip">星际穿越</span>
+                    <span class="chip">繁花</span>
+                    <span class="chip">沙丘 2</span>
+                    <span class="chip">周处除三害</span>
+                  </div>
+                </div>
+
+                <div id="a-hot-wrap">
+                  <div class="sec-label">热门搜索</div>
+                  <div class="chips">
+                    <span class="chip">庆余年</span>
+                    <span class="chip">默杀</span>
+                    <span class="chip">死侍与金刚狼</span>
+                    <span class="chip">头脑特工队 2</span>
+                  </div>
+                </div>
+
+                <div class="sec-label">联想结果</div>
+                <div class="sug-row" data-title="星际穿越">
+                  <div class="sug-thumb p1"></div>
+                  <div class="sug-info">
+                    <div class="sug-title">星际穿越</div>
+                    <div class="sug-meta">2014 · 科幻 / 剧情 / 冒险</div>
+                  </div>
+                  <span class="sug-rating">★ 9.4</span>
+                </div>
+                <div class="sug-row" data-title="星际迷航：发现号">
+                  <div class="sug-thumb p5"></div>
+                  <div class="sug-info">
+                    <div class="sug-title">星际迷航：发现号</div>
+                    <div class="sug-meta">2017 · 科幻 / 冒险 · 剧集</div>
+                  </div>
+                  <span class="sug-rating">★ 8.1</span>
+                </div>
+                <div class="sug-row" data-title="星际宝贝">
+                  <div class="sug-thumb p3"></div>
+                  <div class="sug-info">
+                    <div class="sug-title">星际宝贝</div>
+                    <div class="sug-meta">2002 · 动画 / 家庭</div>
+                  </div>
+                  <span class="sug-rating">★ 8.6</span>
+                </div>
+
+                <button class="wide-action" id="a-search-btn">查看全部 12 条结果 →</button>
+              </div>
+
+              <div id="a-results" hidden>
+                <div class="result-head">
+                  <button class="icon-btn" id="a-back-results" aria-label="返回联想">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"/></svg>
+                  </button>
+                  <div>
+                    <div class="result-head-title">搜索结果 · 星</div>
+                    <div class="result-head-sub">12 部影视 · 按相关度</div>
+                  </div>
+                </div>
+
+                <div class="chips result-filters">
+                  <span class="chip active">全部</span>
+                  <span class="chip">电影</span>
+                  <span class="chip">剧集</span>
+                  <span class="chip">动画</span>
+                </div>
+
+                <div class="result-row">
+                  <div class="result-poster p1"></div>
+                  <div class="result-main">
+                    <div class="result-title">星际穿越</div>
+                    <div class="result-meta">2014 · 科幻 / 剧情<br>★ 9.4 · 169 分钟</div>
+                  </div>
+                  <button class="result-cta">转存</button>
+                </div>
+                <div class="result-row">
+                  <div class="result-poster p5"></div>
+                  <div class="result-main">
+                    <div class="result-title">星际迷航：发现号</div>
+                    <div class="result-meta">2017 · 科幻 / 冒险<br>★ 8.1 · 剧集 · 5 季</div>
+                  </div>
+                  <button class="result-cta">转存</button>
+                </div>
+                <div class="result-row">
+                  <div class="result-poster p3"></div>
+                  <div class="result-main">
+                    <div class="result-title">星际宝贝</div>
+                    <div class="result-meta">2002 · 动画 / 家庭<br>★ 8.6 · 85 分钟</div>
+                  </div>
+                  <button class="result-cta">转存</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-kicker">OPTION A</div>
+        <h2>全屏搜索页</h2>
+        <p class="spec-desc">顶栏只留一个搜索图标，点开后进入独立的全屏搜索层。输入框、最近搜索、热门搜索和联想结果都拿到完整宽度。</p>
+        <dl class="spec-rows">
+          <div class="spec-row"><dt>优点</dt><dd>最专注，键盘友好；联想结果和结果列表都有足够空间，是 iOS / Android 的通用心智。</dd></div>
+          <div class="spec-row"><dt>注意</dt><dd>多一次点击；返回路径必须清晰，否则容易迷失。</dd></div>
+          <div class="spec-row"><dt>适用</dt><dd>搜索是高频核心操作，愿意为它单独做一层。</dd></div>
+        </dl>
+        <div class="spec-entry">入口：<b>顶栏搜索图标</b> · 点开后全屏</div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= B ================= -->
+  <div class="variant" data-v="b" hidden>
+    <div class="stage-grid">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="status-icons">●●●</span></div>
+
+          <div class="app-top">
+            <button class="icon-btn" aria-label="菜单">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <span class="app-title">影视发现</span>
+            <span class="spacer"></span>
+          </div>
+
+          <div class="app-body with-bottom-bar">
+            <div class="chips"><span class="chip active">热门电影</span><span class="chip">最新</span><span class="chip">高分</span><span class="chip">剧集</span></div>
+            <div class="poster-grid">
+              <div class="poster p2"><span class="p-badge">4K</span><span>沙丘 2</span></div>
+              <div class="poster p3"><span class="p-badge">HD</span><span>繁花</span></div>
+              <div class="poster p4"><span class="p-badge">HD</span><span>奥本海默</span></div>
+              <div class="poster p5"><span class="p-badge">HD</span><span>三体</span></div>
+              <div class="poster p6"><span class="p-badge">HD</span><span>周处除三害</span></div>
+              <div class="poster p1"><span class="p-badge">4K</span><span>星际穿越</span></div>
+            </div>
+          </div>
+
+          <div class="bottom-bar" id="b-open">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span>搜索电影、剧集、动画</span>
+            <span class="bar-filter">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="17" x2="14" y2="17"/></svg>
+            </span>
+          </div>
+
+          <div class="overlay" id="b-overlay" hidden>
+            <div class="overlay-top">
+              <button class="icon-btn" id="b-close" aria-label="返回">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div class="overlay-input">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input value="沙丘" placeholder="搜索电影、剧集、动画" autocomplete="off">
+              </div>
+              <button class="text-btn" id="b-cancel">取消</button>
+            </div>
+            <div class="overlay-body">
+              <div class="sec-label">最近搜索</div>
+              <div class="chips">
+                <span class="chip">沙丘 2</span>
+                <span class="chip">繁花</span>
+                <span class="chip">星际穿越</span>
+              </div>
+              <div class="sec-label">联想结果</div>
+              <div class="sug-row">
+                <div class="sug-thumb p2"></div>
+                <div class="sug-info">
+                  <div class="sug-title">沙丘 2</div>
+                  <div class="sug-meta">2024 · 科幻 / 冒险</div>
+                </div>
+                <span class="sug-rating">★ 8.6</span>
+              </div>
+              <div class="sug-row">
+                <div class="sug-thumb p6"></div>
+                <div class="sug-info">
+                  <div class="sug-title">沙丘</div>
+                  <div class="sug-meta">2021 · 科幻 / 冒险</div>
+                </div>
+                <span class="sug-rating">★ 8.0</span>
+              </div>
+              <button class="wide-action">查看全部 8 条结果 →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-kicker">OPTION B</div>
+        <h2>底部搜索条</h2>
+        <p class="spec-desc">把搜索入口从顶栏移到屏幕底部、拇指自然落点。点击后进入与 A 相同的全屏搜索层，浏览时随时可以唤起。</p>
+        <dl class="spec-rows">
+          <div class="spec-row"><dt>优点</dt><dd>单手可达；不占顶栏；浏览和搜索的切换成本最低，最像原生 App。</dd></div>
+          <div class="spec-row"><dt>注意</dt><dd>会遮住底部内容，需要给内容预留 padding，并配合 iPhone 安全区。</dd></div>
+          <div class="spec-row"><dt>适用</dt><dd>手机端为主，希望搜索随手可用、单手完成。</dd></div>
+        </dl>
+        <div class="spec-entry">入口：<b>底部悬浮条</b> · 点开后进入全屏搜索</div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= C ================= -->
+  <div class="variant" data-v="c" hidden>
+    <div class="stage-grid">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="status-icons">●●●</span></div>
+
+          <div class="app-top">
+            <button class="icon-btn" aria-label="返回">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span class="app-title">搜索结果</span>
+            <span class="spacer"></span>
+            <button class="text-btn">清除</button>
+          </div>
+
+          <div class="app-body">
+            <div class="query-bar">
+              <div class="query-input">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input value="星际" placeholder="搜索电影、剧集、动画">
+              </div>
+              <div class="query-filters">
+                <span class="chip active">全部</span>
+                <span class="chip">电影</span>
+                <span class="chip">剧集</span>
+                <span class="chip">动画</span>
+                <span class="chip">按相关度</span>
+              </div>
+            </div>
+
+            <div class="result-row">
+              <div class="result-poster p1"></div>
+              <div class="result-main">
+                <div class="result-title">星际穿越</div>
+                <div class="result-meta">2014 · 科幻 / 剧情<br>★ 9.4 · 169 分钟</div>
+              </div>
+              <button class="result-cta">转存</button>
+            </div>
+            <div class="result-row">
+              <div class="result-poster p5"></div>
+              <div class="result-main">
+                <div class="result-title">星际迷航：发现号</div>
+                <div class="result-meta">2017 · 科幻 / 冒险<br>★ 8.1 · 剧集 · 5 季</div>
+              </div>
+              <button class="result-cta">转存</button>
+            </div>
+            <div class="result-row">
+              <div class="result-poster p3"></div>
+              <div class="result-main">
+                <div class="result-title">星际宝贝</div>
+                <div class="result-meta">2002 · 动画 / 家庭<br>★ 8.6 · 85 分钟</div>
+              </div>
+              <button class="result-cta">转存</button>
+            </div>
+            <div class="result-row">
+              <div class="result-poster p6"></div>
+              <div class="result-main">
+                <div class="result-title">星际牛仔</div>
+                <div class="result-meta">1998 · 动画 / 科幻<br>★ 9.0 · 剧集 · 1 季</div>
+              </div>
+              <button class="result-cta">转存</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-kicker">OPTION C</div>
+        <h2>结果列表化</h2>
+        <p class="spec-desc">不动入口，只改「搜完之后」。把桌面端的三列海报网格换成纵向列表，并在顶部吸住查询词与筛选，滚动时随时能改条件。</p>
+        <dl class="spec-rows">
+          <div class="spec-row"><dt>优点</dt><dd>改动最小；标题、年份、类型、评分都能完整展示；点「转存」的路径最短。</dd></div>
+          <div class="spec-row"><dt>注意</dt><dd>顶栏入口仍然偏窄，联想空间没有变；只解决结果段。</dd></div>
+          <div class="spec-row"><dt>适用</dt><dd>不想大改导航，但希望搜完以后好用、信息不丢。</dd></div>
+        </dl>
+        <div class="spec-entry">入口：<b>保持现状</b> · 只重做结果页</div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= D ================= -->
+  <div class="variant" data-v="d" hidden>
+    <div class="stage-grid">
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="status-icons">●●●</span></div>
+
+          <div class="app-top">
+            <button class="icon-btn" aria-label="菜单">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <span class="app-title">影视发现</span>
+          </div>
+          <div class="app-body">
+            <div class="chips"><span class="chip active">热门电影</span><span class="chip">最新</span><span class="chip">高分</span></div>
+            <div class="poster-grid">
+              <div class="poster p1"><span class="p-badge">4K</span><span>星际穿越</span></div>
+              <div class="poster p2"><span class="p-badge">4K</span><span>沙丘 2</span></div>
+              <div class="poster p3"><span class="p-badge">HD</span><span>繁花</span></div>
+            </div>
+          </div>
+
+          <div class="modal-mock">
+            <div class="modal-card">
+              <div class="modal-head">
+                <div style="flex:1;min-width:0;">
+                  <div class="modal-title">星际穿越 (2014)</div>
+                  <div class="modal-sub">SCI-FI / DRAMA · 169 MIN</div>
+                </div>
+                <button class="icon-btn" aria-label="关闭">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+
+              <div class="modal-tabs">
+                <div class="modal-tab">AI 智能托管</div>
+                <div class="modal-tab active">专家手动微调</div>
+              </div>
+
+              <div class="modal-body">
+                <div class="sticky-search">
+                  <div class="search-box-row">
+                    <input value="星际穿越 4K" placeholder="输入关键词搜索夸克资源">
+                    <button class="btn">检索</button>
+                  </div>
+                  <div class="filter-chips">
+                    <span class="chip active">AI 质检</span>
+                    <span class="chip">深度搜索</span>
+                    <span class="chip">仅 4K</span>
+                    <span class="chip">全集</span>
+                  </div>
+                  <div class="ai-strip">
+                    <span>规格质检已就绪 · LLM 深度复核中</span>
+                    <span class="mono">LLM</span>
+                  </div>
+                </div>
+
+                <div class="rcard best">
+                  <div class="rcard-top">
+                    <span class="rank-badge gold">#1 推荐</span>
+                    <span class="rcard-tags">
+                      <span class="rtag hot">4K</span>
+                      <span class="rtag hot">HDR</span>
+                      <span class="rtag hot">全集</span>
+                    </span>
+                  </div>
+                  <div class="rcard-title">星际穿越 2014 4K HDR 国英双语音轨 内封简繁</div>
+                  <div class="rcard-reason">4K HDR 全集纯净，无广告引流，视频文件 1 个，目录结构清晰。</div>
+                  <div class="rcard-url">https://pan.quark.cn/s/8f3a…c21</div>
+                  <div class="rcard-actions">
+                    <button class="btn primary">选用并转存</button>
+                    <button class="btn">AI 透视</button>
+                  </div>
+                </div>
+
+                <div class="rcard">
+                  <div class="rcard-top">
+                    <span class="rank-badge">#2</span>
+                    <span class="rcard-tags">
+                      <span class="rtag hot">4K</span>
+                      <span class="rtag">REMUX</span>
+                    </span>
+                  </div>
+                  <div class="rcard-title">星际穿越 4K REMUX 蓝光原盘 杜比视界</div>
+                  <div class="rcard-reason">蓝光原盘画质最佳，文件体积较大，适合收藏。</div>
+                  <div class="rcard-url">https://pan.quark.cn/s/1c7d…9ab</div>
+                  <div class="rcard-actions">
+                    <button class="btn">选用</button>
+                    <button class="btn">AI 透视</button>
+                  </div>
+                </div>
+
+                <div class="rcard">
+                  <div class="rcard-top">
+                    <span class="rank-badge">#3</span>
+                    <span class="rcard-tags">
+                      <span class="rtag">1080P</span>
+                    </span>
+                  </div>
+                  <div class="rcard-title">星际穿越 1080P 中英双字</div>
+                  <div class="rcard-reason">1080P 高清，体积小，适合移动端观看。</div>
+                  <div class="rcard-url">https://pan.quark.cn/s/77aa…30e</div>
+                  <div class="rcard-actions">
+                    <button class="btn">选用</button>
+                    <button class="btn">AI 透视</button>
+                  </div>
+                </div>
+
+                <button class="wide-action" id="d-more">查看全部 18 条结果 →</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sheet-backdrop" id="d-sheet" hidden>
+            <div class="sheet">
+              <div class="sheet-handle"></div>
+              <div class="sheet-head">
+                <span>全部 18 条结果</span>
+                <button class="text-btn" id="d-sheet-close">关闭</button>
+              </div>
+              <div class="sheet-list">
+                <div class="sheet-item"><span>星际穿越 4K HDR 国英双语</span><span class="mono">4K</span></div>
+                <div class="sheet-item"><span>星际穿越 4K REMUX 蓝光原盘</span><span class="mono">4K</span></div>
+                <div class="sheet-item"><span>星际穿越 1080P 中英双字</span><span class="mono">1080P</span></div>
+                <div class="sheet-item"><span>星际穿越 2014 全集 纯净版</span><span class="mono">4K</span></div>
+                <div class="sheet-item"><span>星际穿越 IMAX 版 2160P</span><span class="mono">4K</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="spec">
+        <div class="spec-kicker">OPTION D</div>
+        <h2>盘搜卡片化</h2>
+        <p class="spec-desc">针对转存弹窗里的「盘搜」：搜索框与筛选吸顶，AI 状态单独一行，结果从密集列表改成带推荐理由和明确主按钮的卡片。</p>
+        <dl class="spec-rows">
+          <div class="spec-row"><dt>优点</dt><dd>检索控件不再挤成一行；键盘弹起后仍能看到搜索框；「选用并转存」成为唯一主操作。</dd></div>
+          <div class="spec-row"><dt>注意</dt><dd>卡片比列表占纵向空间，需要控制每屏数量；「查看全部」要继续用底部抽屉承接。</dd></div>
+          <div class="spec-row"><dt>适用</dt><dd>主要在手机上下发转存，希望少滑动、少误触。</dd></div>
+        </dl>
+        <div class="spec-entry">入口：<b>转存弹窗 · 专家手动</b> · 盘搜结果卡片化</div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="compare">
+  <div class="compare-head">
+    <h2>怎么选</h2>
+    <p>四套都沿用现有 token 和组件，不改接口。A/B 解决入口，C 解决结果，D 解决盘搜，可以组合。</p>
+  </div>
+  <div class="compare-grid">
+    <article class="cmp-card">
+      <div class="cmp-top"><span class="cmp-idx">A</span><h3>全屏搜索页</h3><span class="cmp-tag">最专注</span></div>
+      <p class="cmp-desc">搜索图标进入独立全屏层，输入、最近搜索、联想都完整展开。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>优点</dt><dd>键盘友好，空间充足，系统原生心智</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>多一次点击，返回路径要清晰</dd></div>
+      </div>
+    </article>
+    <article class="cmp-card">
+      <div class="cmp-top"><span class="cmp-idx">B</span><h3>底部搜索条</h3><span class="cmp-tag">最顺手</span></div>
+      <p class="cmp-desc">搜索条固定在拇指区，浏览时随时唤起，点击进入全屏搜索。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>优点</dt><dd>单手可达，切换成本最低</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>遮挡底部内容，要预留 padding 和安全区</dd></div>
+      </div>
+    </article>
+    <article class="cmp-card">
+      <div class="cmp-top"><span class="cmp-idx">C</span><h3>结果列表化</h3><span class="cmp-tag">改动最小</span></div>
+      <p class="cmp-desc">保留现有入口，只把结果从三列网格改成带吸顶查询条的列表。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>优点</dt><dd>信息完整，转存路径最短，风险低</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>入口仍然偏窄，只解决结果段</dd></div>
+      </div>
+    </article>
+    <article class="cmp-card">
+      <div class="cmp-top"><span class="cmp-idx">D</span><h3>盘搜卡片化</h3><span class="cmp-tag">少误触</span></div>
+      <p class="cmp-desc">转存弹窗里的搜索与筛选吸顶，结果改成带推荐理由的卡片。</p>
+      <div class="cmp-list">
+        <div class="cmp-row"><dt>优点</dt><dd>控件不挤，主操作明确，键盘不挡结果</dd></div>
+        <div class="cmp-row"><dt>注意</dt><dd>纵向空间占用更大，需要抽屉承接全部结果</dd></div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<div class="recommend">
+  <div class="recommend-mark">R</div>
+  <p>
+    <b>建议组合：B + C + D。</b>底部搜索条负责「随手能搜」，全屏搜索层负责「搜得专注」，结果列表化负责「搜完能看懂」，
+    盘搜卡片化负责「最后一步不误触」。如果只想先落一版，<b>C 的风险最低、收益最直接</b>；
+    如果愿意多改一点，<b>B + C</b> 是最完整的手机查询体验。
+  </p>
+</div>
+
+<script>
+  (function () {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.sw-btn'));
+    var variants = Array.prototype.slice.call(document.querySelectorAll('.variant'));
+    var nameEl = document.getElementById('stage-name');
+    var tagEl = document.getElementById('stage-tag');
+
+    var meta = {
+      a: { name: '方案 A · 全屏搜索页', tag: '最专注，键盘友好' },
+      b: { name: '方案 B · 底部搜索条', tag: '最顺手，拇指优先' },
+      c: { name: '方案 C · 结果列表化', tag: '改动最小，收益直接' },
+      d: { name: '方案 D · 盘搜卡片化', tag: '少滑动，少误触' }
+    };
+
+    function activate(key) {
+      variants.forEach(function (v) {
+        v.hidden = v.getAttribute('data-v') !== key;
+      });
+      tabs.forEach(function (t) {
+        var on = t.getAttribute('data-target') === key;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
+      });
+      var m = meta[key];
+      if (m) {
+        nameEl.textContent = m.name;
+        tagEl.textContent = m.tag;
+      }
+    }
+
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () {
+        activate(t.getAttribute('data-target'));
+      });
+      t.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+        var i = tabs.indexOf(t);
+        var n = (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[n].focus();
+        activate(tabs[n].getAttribute('data-target'));
+      });
+    });
+
+    var initial = new URLSearchParams(location.search).get('v');
+    activate(meta[initial] ? initial : 'a');
+
+    /* ---------- A：全屏搜索 ---------- */
+    var aOverlay = document.getElementById('a-overlay');
+    var aInput = document.getElementById('a-input');
+    var aSuggest = document.getElementById('a-suggest');
+    var aResults = document.getElementById('a-results');
+    var aRecent = document.getElementById('a-recent-wrap');
+    var aHot = document.getElementById('a-hot-wrap');
+
+    document.getElementById('a-open').addEventListener('click', function () {
+      aOverlay.hidden = false;
+      aInput.focus();
+    });
+    document.getElementById('a-close').addEventListener('click', function () {
+      aOverlay.hidden = true;
+    });
+    document.getElementById('a-cancel').addEventListener('click', function () {
+      aOverlay.hidden = true;
+    });
+    document.getElementById('a-search-btn').addEventListener('click', function () {
+      aSuggest.hidden = true;
+      aResults.hidden = false;
+    });
+    document.getElementById('a-back-results').addEventListener('click', function () {
+      aResults.hidden = true;
+      aSuggest.hidden = false;
+    });
+    aInput.addEventListener('input', function () {
+      var q = aInput.value.trim();
+      aSuggest.hidden = false;
+      aResults.hidden = true;
+      aRecent.hidden = Boolean(q);
+      aHot.hidden = Boolean(q);
+      document.querySelectorAll('#a-suggest .sug-row').forEach(function (row) {
+        row.hidden = Boolean(q) && row.getAttribute('data-title').indexOf(q) === -1;
+      });
+    });
+
+    /* ---------- B：底部搜索条 ---------- */
+    var bOverlay = document.getElementById('b-overlay');
+    document.getElementById('b-open').addEventListener('click', function () {
+      bOverlay.hidden = false;
+    });
+    document.getElementById('b-close').addEventListener('click', function () {
+      bOverlay.hidden = true;
+    });
+    document.getElementById('b-cancel').addEventListener('click', function () {
+      bOverlay.hidden = true;
+    });
+
+    /* ---------- D：盘搜全部结果抽屉 ---------- */
+    var dSheet = document.getElementById('d-sheet');
+    document.getElementById('d-more').addEventListener('click', function () {
+      dSheet.hidden = false;
+    });
+    document.getElementById('d-sheet-close').addEventListener('click', function () {
+      dSheet.hidden = true;
+    });
+    dSheet.addEventListener('click', function (e) {
+      if (e.target === dSheet) dSheet.hidden = true;
+    });
+
+    /* ---------- Esc 关闭当前层 ---------- */
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      aOverlay.hidden = true;
+      bOverlay.hidden = true;
+      dSheet.hidden = true;
+    });
+  })();
+</script>
+</body>
+</html>

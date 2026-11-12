@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, Response
 from fastapi.responses import StreamingResponse
-import httpx
 from app.core.config import get_config
+from app.core.http_clients import get_tmdb_client
 from app.core.tmdb_client import discover_media, search_media, verify_tmdb_connection
 
 router = APIRouter(prefix="/api/tmdb", tags=["tmdb"])
@@ -44,22 +44,18 @@ async def proxy_image(
     cfg = get_config()
     clean_path = path.lstrip("/")
     img_base = cfg.tmdb_image_base_url.rstrip("/")
-    valid_sizes = {"w200", "w300", "w400", "w500", "w780", "w1280", "original"}
+    valid_sizes = {"w185", "w200", "w300", "w342", "w400", "w500", "w780", "w1280", "original"}
     actual_size = size if size in valid_sizes else "w500"
     url = f"{img_base}/t/p/{actual_size}/{clean_path}"
 
-    client_kwargs = {"timeout": 20.0, "follow_redirects": True}
-    if cfg.proxy and cfg.proxy.strip():
-        client_kwargs["proxy"] = cfg.proxy.strip()
-
+    resp = None
     try:
-        client = httpx.AsyncClient(**client_kwargs)
-        req = client.build_request("GET", url)
+        client = await get_tmdb_client()
+        req = client.build_request("GET", url, timeout=20.0)
         resp = await client.send(req, stream=True)
 
         if resp.status_code != 200:
             await resp.aclose()
-            await client.aclose()
             # 返回 404 或默认占位
             return Response(status_code=404, content=b"Image not found")
 
@@ -69,7 +65,6 @@ async def proxy_image(
                     yield chunk
             finally:
                 await resp.aclose()
-                await client.aclose()
 
         headers = {
             "Content-Type": resp.headers.get("Content-Type", "image/jpeg"),
@@ -77,4 +72,6 @@ async def proxy_image(
         }
         return StreamingResponse(stream_content(), status_code=200, headers=headers)
     except Exception as e:
+        if resp is not None:
+            await resp.aclose()
         return Response(status_code=502, content=f"Proxy error: {str(e)}".encode())

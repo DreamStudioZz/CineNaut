@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from app.core.auth import require_admin
 from app.core.config import AppConfig, get_config, save_config
+from app.core.http_clients import reset_tmdb_client
 from app.core.llm_evaluator import verify_llm_connection
 
 router = APIRouter(prefix="/api/config", tags=["config"])
@@ -50,6 +51,16 @@ async def update_config(config: AppConfig):
             incoming[secret] = current[secret]
 
     saved = save_config(AppConfig(**incoming))
+
+    # 代理变化后重建 TMDB 共享连接池，让新请求立即生效
+    old_proxy = str(current.get("proxy") or "").strip()
+    new_proxy = str(saved.proxy or "").strip()
+    if old_proxy != new_proxy:
+        try:
+            await reset_tmdb_client()
+        except Exception as e:
+            print(f"[Config] 重置 TMDB 客户端失败: {e}")
+
     return _config_view(saved)
 
 

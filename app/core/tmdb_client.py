@@ -1,8 +1,9 @@
 import datetime
 import time
+from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
-import httpx
 from app.core.config import get_config
+from app.core.http_clients import get_tmdb_client
 
 GENRE_MAP: Dict[int, str] = {
     # 电影类型
@@ -39,17 +40,28 @@ GENRE_MAP: Dict[int, str] = {
 # 简单内存缓存：key -> (timestamp, data)
 _CACHE: Dict[str, tuple[float, Any]] = {}
 CACHE_TTL = 300  # 缓存 5 分钟
+CACHE_MAX_SIZE = 200
 
 
-def _get_http_client() -> httpx.AsyncClient:
-    cfg = get_config()
-    kwargs: Dict[str, Any] = {
-        "timeout": 15.0,
-        "follow_redirects": True,
-    }
-    if cfg.proxy and cfg.proxy.strip():
-        kwargs["proxy"] = cfg.proxy.strip()
-    return httpx.AsyncClient(**kwargs)
+def _cache_set(key: str, data: Any) -> None:
+    """写入缓存并按 TTL / 最大条目数淘汰，避免长期运行内存无限增长。"""
+    now = time.time()
+    _CACHE[key] = (now, data)
+    if len(_CACHE) <= CACHE_MAX_SIZE:
+        return
+    for k, (ts, _) in list(_CACHE.items()):
+        if now - ts >= CACHE_TTL:
+            _CACHE.pop(k, None)
+    overflow = len(_CACHE) - CACHE_MAX_SIZE
+    if overflow > 0:
+        for k, _ in sorted(_CACHE.items(), key=lambda kv: kv[1][0])[:overflow]:
+            _CACHE.pop(k, None)
+
+
+@asynccontextmanager
+async def _use_http_client():
+    """复用共享的 TMDB 连接池；退出上下文时不关闭 client。"""
+    yield await get_tmdb_client()
 
 
 def _get_headers_and_params(params: Optional[Dict[str, Any]] = None) -> tuple[Dict[str, str], Dict[str, Any]]:
@@ -84,7 +96,7 @@ async def verify_tmdb_connection() -> Dict[str, Any]:
 
     start_time = time.time()
     try:
-        async with _get_http_client() as client:
+        async with _use_http_client() as client:
             resp = await client.get(url, headers=headers, params=params)
             latency = int((time.time() - start_time) * 1000)
 
@@ -118,13 +130,13 @@ def _format_tmdb_item(item: Dict[str, Any], default_is_tv: bool = False) -> Dict
     original_title = item.get("original_name") if is_tv else item.get("original_title")
     release_date = item.get("first_air_date") if is_tv else item.get("release_date")
     year = release_date.split("-")[0] if release_date else ""
-    vote_avg = round(float(item.get("vote_average", 0.0)), 1)
+    vote_avg = round(float(item.get("vote_average") or 0.0), 1)
     genre_ids = item.get("genre_ids", [])
     genres = [GENRE_MAP[gid] for gid in genre_ids if gid in GENRE_MAP]
     genre_text = " / ".join(genres[:3]) if genres else ("剧集" if is_tv else "电影")
 
     poster_path = item.get("poster_path")
-    poster_url = f"/api/tmdb/image?path={poster_path}" if poster_path else ""
+    poster_url = f"/api/tmdb/image?path={poster_path}&size=w342" if poster_path else ""
 
     backdrop_path = item.get("backdrop_path")
     backdrop_url = f"/api/tmdb/image?path={backdrop_path}&size=w780" if backdrop_path else ""
@@ -252,7 +264,7 @@ async def discover_media(category: str = "popular_movie", region: str = "all", p
     url = f"{base_url}{endpoint}"
 
     try:
-        async with _get_http_client() as client:
+        async with _use_http_client() as client:
             resp = await client.get(url, headers=headers, params=query_params)
             if resp.status_code != 200:
                 err_data = resp.json() if "application/json" in resp.headers.get("Content-Type", "") else {}
@@ -277,7 +289,7 @@ async def discover_media(category: str = "popular_movie", region: str = "all", p
             "total_pages": min(data.get("total_pages", 1), 50),
             "error": None,
         }
-        _CACHE[cache_key] = (now, out)
+        _cache_set(cache_key, out)
         return out
     except Exception as e:
         return {
@@ -323,7 +335,7 @@ async def search_media(query: str, page: int = 1) -> Dict[str, Any]:
     url = f"{base_url}{endpoint}"
 
     try:
-        async with _get_http_client() as client:
+        async with _use_http_client() as client:
             resp = await client.get(url, headers=headers, params=query_params)
             if resp.status_code != 200:
                 err_data = resp.json() if "application/json" in resp.headers.get("Content-Type", "") else {}
@@ -351,7 +363,7 @@ async def search_media(query: str, page: int = 1) -> Dict[str, Any]:
             "total_results": data.get("total_results", len(items)),
             "error": None,
         }
-        _CACHE[cache_key] = (now, out)
+        _cache_set(cache_key, out)
         return out
     except Exception as e:
         return {

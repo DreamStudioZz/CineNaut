@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 from pathlib import Path
 from pydantic import BaseModel, Field
 
@@ -53,7 +54,8 @@ def get_config() -> AppConfig:
             if env_admin_key:
                 cfg.admin_key = env_admin_key
             return cfg
-    except Exception:
+    except Exception as e:
+        print(f"[Config] 读取 {CONFIG_FILE} 失败，已回退默认配置: {e}")
         cfg = AppConfig()
         if env_admin_key:
             cfg.admin_key = env_admin_key
@@ -61,7 +63,20 @@ def get_config() -> AppConfig:
 
 
 def save_config(config: AppConfig) -> AppConfig:
+    """原子写入配置：先写临时文件再替换，避免中途失败损坏 config.json"""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(config.model_dump(), f, ensure_ascii=False, indent=2)
+    payload = json.dumps(config.model_dump(), ensure_ascii=False, indent=2)
+    fd, tmp_path = tempfile.mkstemp(dir=str(CONFIG_DIR), prefix=".config-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(payload)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, CONFIG_FILE)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
     return config

@@ -6,16 +6,34 @@ CineNaut 把「找片 → 选源 → 转存 → 追更」串成一条链路：TM
 
 项目使用 FastAPI + 原生 HTML/CSS/JS，无前端构建步骤；界面采用米纸 / 墨线 / 等宽标注的纸质工匠风格。
 
+<p align="center">
+  <img src="assets/images/01-discover.webp" alt="CineNaut 影视发现首页" width="900">
+</p>
+
+## 界面预览
+
+| Auto-Pilot 决策 | 专家手动微调 |
+|---|---|
+| <img src="assets/images/02-auto-pilot.webp" alt="Auto-Pilot 决策卡" width="520"> | <img src="assets/images/03-manual.webp" alt="专家手动微调与结果列表" width="520"> |
+
+| 移动端全屏搜索 | 移动端结果列表 |
+|---|---|
+| <img src="assets/images/04-mobile-search.webp" alt="移动端全屏搜索" width="260"> | <img src="assets/images/05-mobile-results.webp" alt="移动端搜索结果列表" width="260"> |
+
+> 截图使用演示数据，已隐去密钥与分享链接。
+
 ---
 
 ## 目录
 
+- [界面预览](#界面预览)
 - [功能特性](#功能特性)
 - [界面与设计](#界面与设计)
 - [快速开始](#快速开始)
 - [配置说明](#配置说明)
 - [使用流程](#使用流程)
 - [项目结构](#项目结构)
+- [架构概览](#架构概览)
 - [API 一览](#api-一览)
 - [关键设计](#关键设计)
 - [安全建议](#安全建议)
@@ -80,6 +98,7 @@ CineNaut 把「找片 → 选源 → 转存 → 追更」串成一条链路：TM
 - 等宽字体用于数据、步骤、路径与状态，正文使用系统无衬线。
 - Auto-Pilot 等待态采用「精工刻度」：阶段区间内按时间连续爬升，SSE 事件到达时推进。
 - 结果列表不再嵌套滚动：主面板只留 Top 3，完整结果进弹窗。
+- 手机端查询：底部搜索条唤起全屏搜索，支持最近搜索 / 热门搜索 / 实时联想；搜索结果改为纵向列表并带分类筛选；转存弹窗的盘搜控件吸顶、结果卡片化。
 - `app/static/demo-*.html` 是设计对比页，可直接通过 `/static/demo-*.html` 预览。
 
 ---
@@ -226,16 +245,36 @@ nas/TV/{剧名} ({年份})/{剧名} - S{季数}
 │   ├── core/
 │   │   ├── auth.py             # 管理员密钥校验
 │   │   ├── config.py           # AppConfig 与持久化
+│   │   ├── http_clients.py     # 共享 HTTP 连接池（TMDB / QAS / LLM）
 │   │   ├── tmdb_client.py      # TMDB 客户端与缓存
 │   │   ├── qas_client.py       # QAS 客户端、搜索/目录树缓存
 │   │   └── llm_evaluator.py    # 启发式质检、LLM 精审、目录诊断与命名
 │   ├── mcp/tools.py            # MCP 工具定义（预留）
 │   └── static/                 # 前端页面、样式、脚本与设计演示页
+├── assets/images/                # README 截图
 ├── data/config.json            # 运行时配置（gitignore）
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
 └── README.md
+```
+
+---
+
+## 架构概览
+
+```mermaid
+flowchart LR
+  U[用户] --> D[影视发现 / TMDB]
+  D -->|点击海报| AP[Auto-Pilot]
+  AP --> S[PanSou / CloudSaver 盘搜]
+  S --> R[启发式质检 + LLM 精审]
+  R --> P[目录探测 / 套娃穿透]
+  P --> N[路径计算 + Emby/Plex 命名]
+  N --> Q[QAS 转存 / 定时追更]
+  Q --> C[(夸克网盘)]
+  AP -.SSE 实时状态.-> UI[Web 控制台]
+  Q -.任务状态.-> UI
 ```
 
 ---
@@ -298,7 +337,6 @@ nas/TV/{剧名} ({年份})/{剧名} - S{季数}
 - 搜索缓存目前是进程内缓存，重启后会清空。
 - Auto-Pilot 需要 OpenAI 兼容的大模型接口；未启用 AI 时不会展示。
 - 目前没有自动化测试；依赖版本使用 `>=` 范围，生产部署建议自行锁定。
-- 手机端顶部搜索入口仍是紧凑样式，设计对比页已提供但尚未落地。
 - `app/mcp/tools.py` 为预留的 MCP 工具定义，尚未暴露为 MCP Server。
 
 ---
